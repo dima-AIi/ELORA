@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ELORA.Web</RootNamespace>
+    <AssemblyName>ELORA.Web</AssemblyName>
+    <UserSecretsId>elora-web-secrets-2026</UserSecretsId>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <!-- Перекрываем транзитивную 2.1.11: в ней известная уязвимость (NU1903).
+         Явная ссылка на 2.1.13 закрывает предупреждение. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+    <!-- Только для удобства разработки: правки .cshtml видны без перезапуска.
+         На работу опубликованного сайта не влияет. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\Sql\schema.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Настройки разработки на боевом сервере не нужны, а вреда от них два:
+       в них DetailedErrors=true, и если хостинг по ошибке выставит окружение
+       Development, посетители начнут видеть стек ошибок вместо страницы. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Content Update="appsettings.Development.json">
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

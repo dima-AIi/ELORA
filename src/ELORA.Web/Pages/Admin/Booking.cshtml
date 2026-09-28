@@ -1,0 +1,230 @@
+@page "/admin/bookings/{id:int}"
+@model ELORA.Web.Pages.Admin.BookingCardModel
+@using ELORA.Web.Helpers
+@using ELORA.Web.Models
+@{
+    var booking = Model.Booking;
+    ViewData["Title"] = $"Запись №{booking.Id}";
+    ViewData["Subtitle"] = $"{booking.ClientName} · {booking.StartLocal:dd.MM.yyyy HH:mm}";
+    var nick = Model.Client?.TelegramNick;
+    var nickLink = string.IsNullOrWhiteSpace(nick) ? "" : $"https://t.me/{TelegramNick.WithoutAt(nick)}";
+    var telegramConnected = !string.IsNullOrWhiteSpace(booking.ClientTelegramChatId);
+}
+
+<div class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">
+            Запись №@booking.Id
+            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                @BookingStatuses.Title(booking.Status)
+            </span>
+        </h2>
+        <div class="admin-row-actions">
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Bookings">← К записям</a>
+        </div>
+    </div>
+
+    <div class="admin-kv">
+        <div class="admin-kv__row">
+            <span>Услуга</span>
+            <span class="is-strong">
+                @booking.ServiceName
+                <span class="admin-muted">· @Money.Duration(booking.DurationMinutes)</span>
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Мастер</span>
+            <span>@booking.MasterName</span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Когда</span>
+            <span class="is-strong">
+                @booking.StartLocal.ToString("dd.MM.yyyy") ·
+                @Money.TimeRange(booking.StartLocal, booking.EndLocal)
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Стоимость</span>
+            <span>@Money.Format(booking.Price)</span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Создана</span>
+            <span class="admin-muted">
+                @(DateTime.TryParse(booking.CreatedAt, out var created) ? created.ToString("dd.MM.yyyy HH:mm") : booking.CreatedAt)
+            </span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(booking.Comment))
+        {
+            <div class="admin-kv__row">
+                <span>Комментарий клиента</span>
+                <span>@booking.Comment</span>
+            </div>
+        }
+    </div>
+</div>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Клиент</h2>
+        <div class="admin-row-actions">
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Client" asp-route-id="@booking.ClientId">
+                Карточка клиента
+            </a>
+        </div>
+    </div>
+
+    <div class="admin-kv">
+        <div class="admin-kv__row">
+            <span>Имя</span>
+            <span class="is-strong">@booking.ClientName</span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Телефон</span>
+            <span><a href="tel:@booking.ClientPhone">@booking.ClientPhone</a></span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Ник в Telegram</span>
+            <span>
+                @if (!string.IsNullOrWhiteSpace(nick))
+                {
+                    <a href="@nickLink" target="_blank" rel="noopener">@nick</a>
+                }
+                else
+                {
+                    <span class="admin-muted">не указан</span>
+                }
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Бот в Telegram</span>
+            <span>
+                @if (telegramConnected)
+                {
+                    <span class="status-badge is-confirmed">подключён</span>
+                }
+                else
+                {
+                    <span class="status-badge is-pending">не подключён — бот написать не сможет</span>
+                }
+            </span>
+        </div>
+        @if (Model.Client is not null)
+        {
+            <div class="admin-kv__row">
+                <span>Визитов завершено</span>
+                <span>@Model.Client.Visits · @Money.Format(Model.Client.TotalSpent)</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.Client.Notes))
+            {
+                <div class="admin-kv__row">
+                    <span>Заметка о клиенте</span>
+                    <span>@Model.Client.Notes</span>
+                </div>
+            }
+        }
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Что можно сделать</h2>
+        <span class="admin-muted">Клиенту уходят уведомления в Telegram, если его чат подключён</span>
+    </div>
+
+    <div class="admin-row-actions">
+        @if (booking.Status == BookingStatuses.Pending)
+        {
+            <form method="post" asp-page-handler="Status">
+                <input type="hidden" name="id" value="@booking.Id" />
+                <input type="hidden" name="status" value="@BookingStatuses.Confirmed" />
+                <button type="submit" class="btn btn--sm">Подтвердить</button>
+            </form>
+        }
+        @if (booking.Status == BookingStatuses.Confirmed)
+        {
+            <form method="post" asp-page-handler="Status">
+                <input type="hidden" name="id" value="@booking.Id" />
+                <input type="hidden" name="status" value="@BookingStatuses.Completed" />
+                <button type="submit" class="btn btn--sm">Завершить</button>
+            </form>
+        }
+        @if (booking.IsActiveStatus)
+        {
+            <form method="post" asp-page-handler="Status" data-confirm="Отменить запись №@booking.Id?">
+                <input type="hidden" name="id" value="@booking.Id" />
+                <input type="hidden" name="status" value="@BookingStatuses.Cancelled" />
+                <button type="submit" class="btn btn--sm btn--danger">Отменить</button>
+            </form>
+        }
+        @* Удаление только для закрытых записей: активную сначала отменяют. *@
+        @if (!booking.IsActiveStatus)
+        {
+            <form method="post" asp-page-handler="Delete"
+                  data-confirm="Удалить запись №@booking.Id насовсем? Вернуть её будет нельзя.">
+                <input type="hidden" name="id" value="@booking.Id" />
+                <button type="submit" class="btn btn--sm btn--danger">Удалить</button>
+            </form>
+        }
+    </div>
+
+    <div class="admin-actions-row" style="margin-top:14px;">
+        <a class="btn btn--ghost btn--sm" href="/manage/@booking.ManageToken" target="_blank" rel="noopener">
+            Открыть страницу клиента
+        </a>
+        <span class="admin-muted">
+            Это клиентский экран по личной ссылке клиента — здесь он видит свою запись и может
+            её перенести или отменить.
+        </span>
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Другие записи этого клиента</h2>
+        <span class="admin-muted">Всего: @Model.OtherBookings.Count</span>
+    </div>
+
+    @if (Model.OtherBookings.Count == 0)
+    {
+        <div class="empty-state">Других записей у этого клиента нет.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Когда</th>
+                    <th>Услуга</th>
+                    <th>Мастер</th>
+                    <th>Цена</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.OtherBookings)
+                {
+                    <tr>
+                        <td class="is-strong">
+                            @item.StartLocal.ToString("dd.MM.yyyy")<br />
+                            <span class="admin-muted">@Money.TimeRange(item.StartLocal, item.EndLocal)</span>
+                        </td>
+                        <td>@item.ServiceName</td>
+                        <td>@item.MasterName</td>
+                        <td>@Money.Format(item.Price)</td>
+                        <td>
+                            <span class="status-badge @BookingStatuses.CssClass(item.Status)">
+                                @BookingStatuses.Title(item.Status)
+                            </span>
+                        </td>
+                        <td>
+                            <a class="admin-mini-btn" asp-page="/Admin/Booking" asp-route-id="@item.Id">Открыть</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

@@ -1,0 +1,52 @@
+﻿@page
+@model ErrorModel
+@{
+    ViewData["Title"] = Model.Heading;
+    ViewData["Description"] = "Страница ошибки на сайте студии красоты ELORA.";
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <h1 class="page-hero__title">@Model.Heading</h1>
+        <p class="page-hero__sub">@Model.Explanation</p>
+
+        <div class="error-actions">
+            <a class="btn" asp-page="/Index">На главную</a>
+            <a class="btn btn--ghost" asp-page="/Booking">Записаться онлайн</a>
+        </div>
+    </div>
+</section>
+
+@if (Model.IsNotFound)
+{
+    <section class="section section--tight">
+        <div class="container">
+            <div class="info-grid">
+                <article class="card">
+                    <div class="info-card__title">Услуги и цены</div>
+                    <p class="info-card__text">
+                        Маникюр, педикюр, ресницы, брови, волосы и тату — со стоимостью и длительностью.
+                    </p>
+                    <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/Price">Прайс-лист @Icons.Arrow(14)</a>
+                </article>
+
+                <article class="card">
+                    <div class="info-card__title">Наши работы</div>
+                    <p class="info-card__text">
+                        Галерея по направлениям: посмотрите, как выглядит результат до записи.
+                    </p>
+                    <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/Works">Смотреть @Icons.Arrow(14)</a>
+                </article>
+
+                <article class="card">
+                    <div class="info-card__title">Контакты</div>
+                    <p class="info-card__text">
+                        Адрес, телефон и часы работы студии — если удобнее спросить голосом.
+                    </p>
+                    <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/Contacts">Открыть @Icons.Arrow(14)</a>
+                </article>
+            </div>
+        </div>
+    </section>
+}

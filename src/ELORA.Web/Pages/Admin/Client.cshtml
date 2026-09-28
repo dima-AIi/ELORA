@@ -1,0 +1,202 @@
+@page "{id:int}"
+@model ELORA.Web.Pages.Admin.ClientModel
+@using ELORA.Web.Helpers
+@using ELORA.Web.Models
+@{
+    ViewData["Title"] = Model.Client.Name;
+    ViewData["Subtitle"] = Model.Client.Phone;
+    var nick = Model.Client.TelegramNick;
+    var nickLink = string.IsNullOrWhiteSpace(nick) ? "" : $"https://t.me/{TelegramNick.WithoutAt(nick)}";
+}
+
+<div class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">@Model.Client.Name</h2>
+        <div class="admin-row-actions">
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Clients">← К списку</a>
+        </div>
+    </div>
+
+    <div class="admin-stats admin-stats--three">
+        <div class="admin-stat">
+            <div class="admin-stat__label">Завершённых визитов</div>
+            <div class="admin-stat__value">@Model.CompletedVisits</div>
+            <div class="admin-stat__meta">
+                @if (Model.CancelledVisits > 0)
+                {
+                    @($"отменённых — {Model.CancelledVisits}")
+                }
+                else
+                {
+                    @("отменённых записей нет")
+                }
+            </div>
+        </div>
+        <div class="admin-stat">
+            <div class="admin-stat__label">Оставил за всё время</div>
+            <div class="admin-stat__value">@Money.Format(Model.CompletedRevenue)</div>
+            <div class="admin-stat__meta">по завершённым визитам</div>
+        </div>
+        <div class="admin-stat">
+            <div class="admin-stat__label">Последний визит</div>
+            <div class="admin-stat__value">@(Model.Client.LastVisit?.ToString("dd.MM.yyyy") ?? "—")</div>
+            <div class="admin-stat__meta">@Model.Client.SinceVisitText</div>
+        </div>
+    </div>
+
+    <div class="admin-kv">
+        <div class="admin-kv__row">
+            <span>Телефон</span>
+            <a href="tel:@Model.Client.Phone">@Model.Client.Phone</a>
+        </div>
+        <div class="admin-kv__row">
+            <span>Telegram</span>
+            <span>
+                @if (Model.Client.TelegramConnected)
+                {
+                    <span class="status-badge is-confirmed">подключён</span>
+                }
+                else
+                {
+                    <span class="status-badge is-pending">не подключён — бот написать не сможет</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(nick))
+                {
+                    <a href="@nickLink" target="_blank" rel="noopener" class="admin-muted">@nick</a>
+                }
+                else
+                {
+                    <span class="admin-muted">ник не указан</span>
+                }
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Ближайшая запись</span>
+            <span>
+                @if (Model.Client.NextVisit is not null)
+                {
+                    <span class="is-strong">@Model.Client.NextVisit.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                }
+                else
+                {
+                    <span class="admin-muted">не записан</span>
+                }
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Приглашали вернуться</span>
+            <span class="admin-muted">
+                @(Model.Client.LastRemindedAt?.ToString("dd.MM.yyyy HH:mm") ?? "ни разу")
+            </span>
+        </div>
+        <div class="admin-kv__row">
+            <span>В базе с</span>
+            <span class="admin-muted">
+                @(DateTime.TryParse(Model.Client.CreatedAt, out var created) ? created.ToString("dd.MM.yyyy") : Model.Client.CreatedAt)
+            </span>
+        </div>
+    </div>
+</div>
+
+@if (Model.IsDueForVisit)
+{
+    <div class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Пора напомнить</h2>
+            <span class="admin-muted">
+                Последний визит был больше @Model.ThresholdWeeks @Money.Weeks(Model.ThresholdWeeks) назад, новой записи нет
+            </span>
+        </div>
+
+        @if (Model.Client.TelegramConnected)
+        {
+            <form method="post" asp-page-handler="Invite" class="admin-form">
+                <input type="hidden" name="id" value="@Model.Client.Id" />
+                <div class="field">
+                    <label class="field__label">Текст приглашения (пусто — отправить стандартный)</label>
+                    <textarea class="field__input" name="text" rows="4"
+                              placeholder="💫 Анна, здравствуйте! Давно вас не было в ELORA…"></textarea>
+                </div>
+                <div class="admin-actions-row">
+                    <button type="submit" class="btn btn--sm">Отправить в Telegram</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="alert alert--info is-visible">
+                Клиент не подключён к боту, поэтому написать ему из админки нельзя.
+                Позвоните: <a href="tel:@Model.Client.Phone">@Model.Client.Phone</a>
+            </div>
+        }
+    </div>
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">История записей</h2>
+        <span class="admin-muted">Всего: @Model.Bookings.Count</span>
+    </div>
+
+    @if (Model.Bookings.Count == 0)
+    {
+        <div class="empty-state">Записей ещё не было.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Когда</th>
+                    <th>Услуга</th>
+                    <th>Мастер</th>
+                    <th>Цена</th>
+                    <th>Статус</th>
+                    <th>Комментарий</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var booking in Model.Bookings)
+                {
+                    <tr>
+                        <td class="is-strong">
+                            @booking.StartLocal.ToString("dd.MM.yyyy")<br />
+                            <span class="admin-muted">@Money.TimeRange(booking.StartLocal, booking.EndLocal)</span>
+                        </td>
+                        <td>@booking.ServiceName</td>
+                        <td>@booking.MasterName</td>
+                        <td>@Money.Format(booking.Price)</td>
+                        <td>
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                                @BookingStatuses.Title(booking.Status)
+                            </span>
+                        </td>
+                        <td class="admin-muted">
+                            @(string.IsNullOrWhiteSpace(booking.Comment) ? "—" : booking.Comment)
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Заметка</h2>
+        <span class="admin-muted">Видна только в админке — клиент её не получает</span>
+    </div>
+
+    <form method="post" asp-page-handler="Notes" class="admin-form">
+        <input type="hidden" name="id" value="@Model.Client.Id" />
+        <div class="field">
+            <textarea class="field__input" name="notes" rows="5"
+                      placeholder="Пожелания, аллергии, особенности — всё, что важно помнить">@Model.Client.Notes</textarea>
+        </div>
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Сохранить заметку</button>
+        </div>
+    </form>
+</section>

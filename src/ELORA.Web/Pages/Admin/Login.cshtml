@@ -1,0 +1,101 @@
+@page
+@model ELORA.Web.Pages.Admin.LoginModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Вход";
+}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Вход — ELORA Admin</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Разворачивает панель на весь экран, если страница открыта как Mini App, и сам
+       подключает скрипт Telegram. Файл локальный, поэтому на загрузку формы не влияет. *@
+    <script src="~/js/telegram-app.js" asp-append-version="true"></script>
+</head>
+<body class="admin-body admin-body--login">
+    <div class="login-card">
+        <a class="login-card__logo" asp-page="/Index">Elora</a>
+        <h1 class="login-card__title">Вход в админ-панель</h1>
+        <p class="login-card__sub">Управление записями, услугами и расписанием студии</p>
+
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert--error is-visible">@Model.Error</div>
+        }
+
+        <div class="alert alert--info" id="tg-login-status">
+            Входим через Telegram…
+        </div>
+
+        <form method="post">
+            <div class="field">
+                <label class="field__label" for="Login">Логин</label>
+                <input class="field__input" id="Login" asp-for="Login" autocomplete="username" autofocus />
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="Password">Пароль</label>
+                <input class="field__input" id="Password" asp-for="Password" type="password" autocomplete="current-password" />
+            </div>
+
+            <button type="submit" class="btn btn--block" style="margin-top:8px;">Войти</button>
+        </form>
+
+        <a class="login-card__back" asp-page="/Index">← Вернуться на сайт</a>
+    </div>
+
+    @* Форма для входа из Telegram. Показывать её не нужно: страница сама отправит
+       подписанные данные, как только Telegram их передаст. Если Telegram не пришёл
+       (обычный браузер), форма остаётся пустой и ничего не происходит — работает пароль. *@
+    <form method="post" asp-page-handler="Telegram" id="tg-login-form" hidden>
+        <input type="hidden" name="initData" id="tg-login-initdata" />
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+    </form>
+
+    @* Скрипт Telegram кладёт в window.Telegram данные, подписанные ботом; подключает его
+       telegram-app.js вместе с полноэкранным режимом. Здесь только вход: как только
+       подписанные данные появились — отправляем форму и уходим в панель. *@
+    <script>
+        (function () {
+            var form = document.getElementById('tg-login-form');
+            var field = document.getElementById('tg-login-initdata');
+            if (!form || !field) return;
+
+            var attempts = 0;
+
+            function submitIfInTelegram() {
+                var webApp = window.Telegram && window.Telegram.WebApp;
+                if (webApp && webApp.initData) {
+                    field.value = webApp.initData;
+
+                    // Класс, а не атрибут hidden: у .alert показ включает именно .is-visible.
+                    var status = document.getElementById('tg-login-status');
+                    if (status) status.classList.add('is-visible');
+
+                    try { webApp.ready(); webApp.expand(); } catch (e) { /* не критично для входа */ }
+
+                    form.submit();
+                    return true;
+                }
+
+                return false;
+            }
+
+            // Скрипт Telegram грузится отдельным файлом и может не успеть к этому моменту —
+            // ждём его, но недолго: не в Telegram страница так и останется формой с паролем.
+            function waitForTelegram() {
+                if (submitIfInTelegram()) return;
+                if (++attempts < 60) setTimeout(waitForTelegram, 100);
+            }
+
+            waitForTelegram();
+        })();
+    </script>
+</body>
+</html>

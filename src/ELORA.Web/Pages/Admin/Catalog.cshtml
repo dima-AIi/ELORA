@@ -1,0 +1,232 @@
+@page
+@model ELORA.Web.Pages.Admin.CatalogModel
+@{
+    ViewData["Title"] = "Услуги и цены";
+    ViewData["Subtitle"] = $"{Model.Categories.Count} направлений · {Model.Services.Count} услуг";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Направления</h2>
+    </div>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Название</th>
+                <th>Slug</th>
+                <th>Порядок</th>
+                <th>Статус</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var category in Model.Categories)
+            {
+                <tr>
+                    <td colspan="5" style="padding:0;">
+                        <details class="admin-details">
+                            <summary class="admin-details__summary">
+                                <span class="is-strong">@category.Name</span>
+                                <span class="admin-muted">/@category.Slug</span>
+                                <span class="status-badge @(category.IsActive ? "is-confirmed" : "is-cancelled")">
+                                    @(category.IsActive ? "активна" : "скрыта")
+                                </span>
+                                <span class="admin-details__count">
+                                    @Model.Services.Count(s => s.CategoryId == category.Id) услуг
+                                </span>
+                            </summary>
+
+                            <form method="post" asp-page-handler="SaveCategory" class="admin-form">
+                                <input type="hidden" name="id" value="@category.Id" />
+
+                                <div class="admin-form__grid">
+                                    <div class="field">
+                                        <label class="field__label">Название</label>
+                                        <input class="field__input" name="name" value="@category.Name" required />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field__label">Slug</label>
+                                        <input class="field__input" name="slug" value="@category.Slug" required />
+                                    </div>
+                                    <div class="field">
+                                        <label class="field__label">Порядок</label>
+                                        <input class="field__input" name="sortOrder" type="number" value="@category.SortOrder" />
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="field__label">Описание</label>
+                                    <input class="field__input" name="description" value="@category.Description" />
+                                </div>
+
+                                <label class="checkbox" style="margin-bottom:14px;">
+                                    <input type="checkbox" name="isActive" value="true" checked="@category.IsActive" />
+                                    <span>Показывать на сайте</span>
+                                </label>
+
+                                <button type="submit" class="btn btn--sm">Сохранить направление</button>
+                            </form>
+                        </details>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@foreach (var category in Model.Categories)
+{
+    var services = Model.Services.Where(s => s.CategoryId == category.Id).ToList();
+    if (services.Count == 0) continue;
+
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">@category.Name</h2>
+            <span class="admin-muted">@services.Count услуг</span>
+        </div>
+
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Услуга</th>
+                    <th>Длительность</th>
+                    <th>Цена</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var service in services)
+                {
+                    <tr>
+                        <td colspan="5" style="padding:0;">
+                            <details class="admin-details">
+                                <summary class="admin-details__summary">
+                                    <span class="is-strong">@service.Name</span>
+                                    <span class="admin-muted">@Money.Duration(service.DurationMinutes)</span>
+                                    <span class="admin-muted">@Money.Format(service.Price)</span>
+                                    <span class="status-badge @(service.IsActive ? "is-confirmed" : "is-cancelled")">
+                                        @(service.IsActive ? "на сайте" : "скрыта")
+                                    </span>
+                                </summary>
+
+                                <form method="post" asp-page-handler="SaveService" class="admin-form">
+                                    <input type="hidden" name="id" value="@service.Id" />
+                                    <input type="hidden" name="categoryId" value="@service.CategoryId" />
+
+                                    <div class="admin-form__grid">
+                                        <div class="field">
+                                            <label class="field__label">Название</label>
+                                            <input class="field__input" name="name" value="@service.Name" required />
+                                        </div>
+                                        <div class="field">
+                                            <label class="field__label">Длительность, мин</label>
+                                            <input class="field__input" name="durationMinutes" type="number" min="15" step="15"
+                                                   value="@service.DurationMinutes" required />
+                                        </div>
+                                        <div class="field">
+                                            <label class="field__label">Цена, ₽</label>
+                                            <input class="field__input" name="price" type="number" min="0" step="50"
+                                                   value="@service.Price.ToString("0")" required />
+                                        </div>
+                                    </div>
+
+                                    <div class="field">
+                                        <label class="field__label">Описание</label>
+                                        <input class="field__input" name="description" value="@service.Description" />
+                                    </div>
+
+                                    <label class="checkbox" style="margin-bottom:14px;">
+                                        <input type="checkbox" name="isActive" value="true" checked="@service.IsActive" />
+                                        <span>Показывать на сайте</span>
+                                    </label>
+
+                                    <div class="admin-actions-row">
+                                        <button type="submit" class="btn btn--sm">Сохранить</button>
+                                    </div>
+                                </form>
+
+                                <form method="post" asp-page-handler="ToggleService" class="admin-inline-form">
+                                    <input type="hidden" name="id" value="@service.Id" />
+                                    <input type="hidden" name="active" value="@((!service.IsActive).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="admin-mini-btn">
+                                        @(service.IsActive ? "Скрыть с сайта" : "Вернуть на сайт")
+                                    </button>
+                                </form>
+
+                                @* На услугу ссылаются записи жёстко, поэтому с записями услугу
+                                   удалять нельзя — только скрывать. Кнопку в этом случае не
+                                   показываем, а сервер повторяет проверку: POST собирается руками. *@
+                                @if (Model.BookingCounts.GetValueOrDefault(service.Id) == 0)
+                                {
+                                    <form method="post" asp-page-handler="DeleteService" class="admin-inline-form"
+                                          data-confirm="Удалить услугу «@service.Name» насовсем? Вернуть её будет нельзя.">
+                                        <input type="hidden" name="id" value="@service.Id" />
+                                        <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="admin-muted">
+                                        есть записи (@Model.BookingCounts.GetValueOrDefault(service.Id)) — только скрыть
+                                    </span>
+                                }
+                            </details>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Добавить услугу</h2>
+    </div>
+
+    <form method="post" asp-page-handler="SaveService" class="admin-form">
+        <input type="hidden" name="id" value="0" />
+
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Название</label>
+                <input class="field__input" name="name" placeholder="Например, Маникюр с покрытием" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Направление</label>
+                <select class="field__select" name="categoryId" required>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label class="field__label">Длительность, мин</label>
+                <input class="field__input" name="durationMinutes" type="number" min="15" step="15" value="60" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Цена, ₽</label>
+                <input class="field__input" name="price" type="number" min="0" step="50" value="1500" required />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label">Описание</label>
+            <input class="field__input" name="description" placeholder="Коротко о процедуре" />
+        </div>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="isActive" value="true" checked />
+            <span>Показывать на сайте</span>
+        </label>
+
+        <button type="submit" class="btn">Добавить услугу</button>
+    </form>
+</section>

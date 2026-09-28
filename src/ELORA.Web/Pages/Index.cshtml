@@ -1,0 +1,345 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = null;
+    ViewData["Description"] = "ELORA — студия красоты: маникюр, педикюр, ресницы, брови, волосы и тату. Онлайн-запись к мастерам за минуту.";
+}
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+    <div class="hero__inner">
+        <div class="hero__content">
+            <h1 class="hero__title">Твоя красота<br />в один клик</h1>
+            <p class="hero__lead">
+                Онлайн-запись к мастерам: маникюр, педикюр, ресницы, брови и другие услуги.
+                Быстро, удобно, без лишних звонков.
+            </p>
+            <div class="hero__actions">
+                <a class="btn btn--lg" asp-page="/Booking">Записаться онлайн @Icons.Arrow(16)</a>
+            </div>
+
+            @* Что стоит в этих трёх строках — не украшение, а проверенное утверждение.
+               Было «Удобная запись 24/7», «Проверенные мастера» и «Безопасная оплата»,
+               и все три не соответствовали сайту: студия работает Пн–Сб 09:00–19:00,
+               мастера вымышленные, а оплату сайт вообще не принимает — только записывает.
+               Обещание, которого сайт не выполняет, — это не маркетинг, а претензия. *@
+            <div class="hero__features">
+                <div class="feature">
+                    <span class="feature__icon">@Icons.Calendar(15)</span>
+                    <span class="feature__text">Запись онлайн<br />без звонков</span>
+                </div>
+                <div class="feature">
+                    <span class="feature__icon">@Icons.UserCheck(15)</span>
+                    <span class="feature__text">Прозрачные<br />цены</span>
+                </div>
+                <div class="feature">
+                    <span class="feature__icon">@Icons.Shield(15)</span>
+                    <span class="feature__text">Напоминание<br />в Telegram</span>
+                </div>
+            </div>
+        </div>
+
+        <figure class="hero__media">
+            @* Hero: два кадра под разные пропорции блока. 1620x1206 = ровно блок
+               806x600 в ретине 2x, апскейла браузером нет (tools/build_hero.py). *@
+            <picture>
+                <source media="(max-width: 768px)" srcset="/images/hero/hero-mobile.jpg" width="1000" height="1169" />
+                <img class="hero__photo" src="/images/hero/hero.jpg" width="1620" height="1206"
+                     alt="Клиентка студии красоты ELORA" fetchpriority="high" decoding="async" />
+            </picture>
+            <figcaption class="hero__note">Красота<br />в твоих<br />руках ♡</figcaption>
+        </figure>
+    </div>
+</section>
+
+<!-- ================= УСЛУГИ ================= -->
+<section class="section" id="services">
+    <div class="container">
+        <div class="section-head">
+            <div class="section-head__text">
+                <h2 class="section-title">Услуги</h2>
+            </div>
+            <a class="link-arrow" asp-page="/Services">Все услуги @Icons.Arrow(15)</a>
+        </div>
+
+        <div class="services__grid" data-reveal>
+            @foreach (var category in Model.Categories)
+            {
+                <a class="service-card" asp-page="/Services" asp-fragment="@category.Slug">
+                    <span class="service-card__media">
+                        @* 560x587: карточка 201 css (1440) / 268 css (1920) -> DPR2.
+                           Без srcset: путь картинки правится в админке, -sm может не существовать. *@
+                        <img src="@category.ImagePath" alt="@category.Name" loading="lazy"
+                             width="560" height="587" />
+                    </span>
+                    <span class="service-card__body">
+                        <span>
+                            <span class="service-card__name">@category.Name</span>
+                            <span class="service-card__price">от @Money.FormatShort(category.PriceFrom) ₽</span>
+                        </span>
+                        <span class="icon-btn">@Icons.Arrow(14)</span>
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- ================= НАШИ РАБОТЫ ================= -->
+<section class="section section--tight" id="works">
+    <div class="container">
+        <div class="section-head">
+            <div class="section-head__text">
+                <h2 class="section-title">Наши работы</h2>
+                <p class="section-sub">Реальные результаты. Настоящие истории.</p>
+            </div>
+            <a class="link-arrow" asp-page="/Works">Смотреть все @Icons.Arrow(15)</a>
+        </div>
+
+        <div class="works__grid" data-reveal>
+            @foreach (var work in Model.FeaturedWorks)
+            {
+                <a class="work-card" asp-page="/Works" asp-route-category="@work.Category">
+                    <img src="@work.ImagePath" alt="@work.Title" loading="lazy" width="680" height="714" />
+                    <span class="work-card__overlay">
+                        <span class="work-card__title">@work.Title</span>
+                        <span class="work-card__cat">@WorkCategories.Title(work.Category)</span>
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- ================= ПРАЙС-ЛИСТ ================= -->
+<section class="section section--tight" id="price">
+    <div class="container">
+        <div class="pricing" data-reveal>
+            <div class="pricing__head">
+                <div>
+                    <h2 class="pricing__title">Прайс-лист</h2>
+                    <p class="pricing__sub">Прозрачные цены на все услуги</p>
+                </div>
+                <a class="btn btn--light btn--sm" asp-page="/Price">Скачать прайс</a>
+            </div>
+
+            <!-- Desktop: три колонки -->
+            <div class="pricing__grid">
+                @foreach (var group in Model.PriceGroups)
+                {
+                    <div class="price-col">
+                        <div class="price-col__title">@group.Title</div>
+                        @foreach (var item in group.Items)
+                        {
+                            <div class="price-row">
+                                <span class="price-row__name">@item.Name</span>
+                                <span class="price-row__value">@item.PriceLabel</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Mobile: аккордеон -->
+            <div class="price-acc" data-accordion="single">
+                @foreach (var group in Model.PriceGroups)
+                {
+                    <div class="price-acc__item">
+                        <button class="price-acc__head" type="button" aria-expanded="false">
+                            <span>@group.Title</span>
+                            @Icons.ChevronDown(15)
+                        </button>
+                        <div class="price-acc__body">
+                            @foreach (var item in group.Items)
+                            {
+                                <div class="price-row">
+                                    <span class="price-row__name">@item.Name</span>
+                                    <span class="price-row__value">@item.PriceLabel</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= КАК ЗАПИСАТЬСЯ ================= -->
+<section class="section section--tight" id="how">
+    <div class="container">
+        <div class="section-head">
+            <div class="section-head__text">
+                <h2 class="section-title">Как записаться?</h2>
+                <p class="section-sub">Проще, чем кажется</p>
+            </div>
+        </div>
+
+        <div class="steps" data-reveal>
+            <div class="step">
+                <span class="step__icon">@Icons.SearchUser(21)</span>
+                <span class="step__text">1. Выберите услугу <br /><span class="step__extra">и мастера</span></span>
+            </div>
+            <div class="step">
+                <span class="step__icon">@Icons.CalendarEdit(21)</span>
+                <span class="step__text">2. Укажите дату <br />и время</span>
+            </div>
+            <div class="step">
+                <span class="step__icon">@Icons.HeartCheck(21)</span>
+                <span class="step__text">3. Подтвердите <br />запись</span>
+            </div>
+            <div class="step">
+                <span class="step__icon">@Icons.Bag(21)</span>
+                <span class="step__text">4. Получите <br />уведомление</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= ПРОМО ================= -->
+@* Блок без обещаний выгоды: здесь стояло «получи скидку 10% на первый визит»,
+   но скидку в вымышленной студии дать некому — это такое же обещание в никуда,
+   как убранное «24/7». Остался призыв к записи, который сайт выполняет. *@
+<section class="section section--tight" id="promo">
+    <div class="container">
+        <div class="promo" data-reveal>
+            <img class="promo__image" src="/images/promo/promo.jpg" alt="" loading="lazy" aria-hidden="true"
+                 srcset="/images/promo/promo.jpg 1800w, /images/promo/promo-sm.jpg 900w"
+                 sizes="(max-width: 768px) 100vw, 62vw" />
+            <div class="promo__content">
+                <h2 class="promo__title">Порадуй себя сегодня</h2>
+                <p class="promo__text">Онлайн-запись: выберите услугу, мастера и удобное время</p>
+                <div class="promo__cta">
+                    <a class="btn" asp-page="/Booking">Записаться @Icons.Arrow(15)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= ОТЗЫВЫ ================= -->
+@* Блок показываем только при живых отзывах: пустая сетка с заголовком выглядит
+   как поломка, а выдуманные отзывы публиковать нельзя — их лучше убрать. *@
+@if (Model.Reviews.Count > 0)
+{
+<section class="section section--tight" id="reviews">
+    <div class="container">
+        <div class="section-head">
+            <div class="section-head__text">
+                <h2 class="section-title">Отзывы</h2>
+                <p class="section-sub">Что говорят наши клиенты</p>
+            </div>
+            <a class="link-arrow" asp-page="/About" asp-fragment="reviews">Все отзывы @Icons.Arrow(15)</a>
+        </div>
+
+        <div class="reviews__grid" data-reveal>
+            @foreach (var review in Model.Reviews)
+            {
+                <article class="review-card">
+                    <div class="review-card__head">
+                        @* Аватар необязателен: снимок с фотостока нельзя выдавать за клиента.
+                           Без него — инициалы. Пустой src дал бы битую картинку. *@
+                        @if (!string.IsNullOrWhiteSpace(review.AvatarPath))
+                        {
+                            <img class="review-card__avatar" src="@review.AvatarPath" alt="@review.ClientName" loading="lazy" width="40" height="40" />
+                        }
+                        else
+                        {
+                            <span class="review-card__initials" aria-hidden="true">@Initials.From(review.ClientName)</span>
+                        }
+                        <div>
+                            <div class="review-card__name">
+                                @review.ClientName
+                                @if (Demo.IsReview(review.Text))
+                                {
+                                    <span class="demo-badge" title="Отзыв добавлен для примера оформления">демо</span>
+                                }
+                            </div>
+                            <div class="stars">
+                                @for (var i = 0; i < review.Rating; i++)
+                                {
+                                    @Icons.Star(11)
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <p class="review-card__text">@review.Text</p>
+                </article>
+            }
+        </div>
+
+        @if (Demo.HasDemoReviews(Model.Reviews.Select(r => r.Text)))
+        {
+            <p class="demo-note">
+                Отзывы демонстрационные — добавлены, чтобы показать, как выглядит раздел с настоящими.
+            </p>
+        }
+        <div class="reviews__dots" aria-hidden="true"></div>
+    </div>
+</section>
+}
+
+<!-- ================= FAQ + AI-КОНСУЛЬТАНТ =================
+     Композиция по референсу: слева вопросы, справа закреплённая карточка
+     консультанта. Вопросы берутся из базы (админка «Отзывы/FAQ»), ответы
+     консультанта — настоящие: браузер обращается к /api/chat, ключ живёт
+     только в настройках сервера. -->
+<section class="section section--tight" id="faq">
+    <div class="container">
+        <div class="ask">
+            <div class="ask__faq">
+                <p class="ask__kicker">Elora</p>
+                <h2 class="ask__title">Часто задаваемые вопросы</h2>
+                <p class="ask__lead">
+                    Собрали то, о чём спрашивают чаще всего. Если нужного ответа нет —
+                    задайте вопрос AI-консультанту, он отвечает круглосуточно.
+                </p>
+
+                <div class="ask__list" data-accordion="single" data-reveal>
+                    @foreach (var item in Model.Faq)
+                    {
+                        <div class="faq__item">
+                            <button class="faq__q" type="button" aria-expanded="false">
+                                <span>@item.Question</span>
+                                @Icons.ChevronDown(16)
+                            </button>
+                            <div class="faq__a">@item.Answer</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <aside class="ask__assistant" data-assistant data-reveal>
+                <div class="assistant__head">
+                    <span class="assistant__badge">@Icons.Sparkle(20)</span>
+                    <div>
+                        <h3 class="assistant__title">Задайте вопрос AI-консультанту</h3>
+                        <p class="assistant__sub">Отвечает круглосуточно, без ожидания</p>
+                    </div>
+                </div>
+
+                <div class="assistant__chat" data-chat role="log" aria-live="polite" aria-label="Диалог с AI-консультантом"></div>
+
+                <div class="assistant__quick" data-quick>
+                    <button class="chip" type="button" data-question="Сколько стоят услуги?">Цены</button>
+                    <button class="chip" type="button" data-question="В какое время вы работаете?">Время работы</button>
+                    <button class="chip" type="button" data-question="Как записаться к вам?">Как записаться?</button>
+                </div>
+
+                <form class="assistant__form" data-chat-form novalidate>
+                    <input class="assistant__input" type="text" name="message" data-chat-input
+                           placeholder="Введите ваш вопрос" autocomplete="off" maxlength="800"
+                           aria-label="Ваш вопрос" />
+                    <button class="assistant__send" type="submit" data-chat-send disabled aria-label="Отправить вопрос">
+                        @Icons.ArrowUp(18)
+                    </button>
+                </form>
+            </aside>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    @* Скрипт консультанта — только на главной: больше он нигде не нужен. *@
+    <script src="~/js/assistant.js" asp-append-version="true"></script>
+}

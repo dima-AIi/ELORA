@@ -1,0 +1,411 @@
+@page
+@model ELORA.Web.Pages.Admin.SettingsModel
+@{
+    ViewData["Title"] = "Настройки";
+    ViewData["Subtitle"] = "Контакты на сайте, два Telegram-бота и доступ в админку";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Контакты и часы работы</h2>
+        <span class="admin-muted">Подставляются в шапку, подвал и на страницу контактов</span>
+    </div>
+
+    <form method="post" asp-page-handler="SaveSite" class="admin-form">
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Телефон</label>
+                <input class="field__input" name="phone" value="@Model.Values.GetValueOrDefault("Site.Phone")" />
+            </div>
+            <div class="field">
+                <label class="field__label">Адрес</label>
+                <input class="field__input" name="address" value="@Model.Values.GetValueOrDefault("Site.Address")" />
+            </div>
+            <div class="field">
+                <label class="field__label">Почта</label>
+                <input class="field__input" name="email" value="@Model.Values.GetValueOrDefault("Site.Email")" />
+            </div>
+            <div class="field">
+                <label class="field__label">Часы работы</label>
+                <input class="field__input" name="workHours" value="@Model.Values.GetValueOrDefault("Site.WorkHours")" />
+            </div>
+            <div class="field">
+                <label class="field__label">Telegram (ссылка)</label>
+                <input class="field__input" name="telegram" value="@Model.Values.GetValueOrDefault("Site.Telegram")" />
+            </div>
+            <div class="field">
+                <label class="field__label">ВКонтакте (ссылка)</label>
+                <input class="field__input" name="vk" value="@Model.Values.GetValueOrDefault("Site.Vk")" />
+            </div>
+            <div class="field">
+                <label class="field__label">Instagram (ссылка)</label>
+                <input class="field__input" name="instagram" value="@Model.Values.GetValueOrDefault("Site.Instagram")"
+                       placeholder="оставьте пустым, если страницы нет" />
+            </div>
+            <div class="field">
+                <label class="field__label">Оператор данных: ИП или ООО</label>
+                <input class="field__input" name="legalName" value="@Model.Values.GetValueOrDefault("Site.LegalName")"
+                       placeholder="ИП Иванова А. А." />
+            </div>
+            <div class="field">
+                <label class="field__label">ИНН</label>
+                <input class="field__input" name="legalInn" value="@Model.Values.GetValueOrDefault("Site.LegalInn")"
+                       placeholder="10 или 12 цифр" />
+            </div>
+        </div>
+
+        @* Ссылка на Instagram разрешена только с пометкой о Meta (ч. 2 ст. 13.15 КоАП),
+           и пометка ставится рядом со ссылкой на сайте — здесь об этом надо предупредить. *@
+        @if (!string.IsNullOrWhiteSpace(Model.Values.GetValueOrDefault("Site.Instagram")))
+        {
+            <div class="alert alert--info is-visible" style="margin-bottom:14px;">
+                Рядом со ссылкой на Instagram на сайте автоматически выводится пометка о том, что
+                сервис принадлежит Meta Platforms Inc., деятельность которой признана экстремистской
+                и запрещена в России. Убирать её нельзя: публикация ссылки без пометки — штраф.
+            </div>
+        }
+
+        @if (Model.ContactsAreDemo)
+        {
+            <div class="alert alert--error is-visible" style="margin-bottom:14px;">
+                <strong>Контакты на сайте демонстрационные.</strong> Номер <code>+7 (999) 123-45-67</code>
+                и адрес «ул. Примерная» видит каждый посетитель, и по телефону может ответить посторонний
+                человек. Впишите настоящие телефон, адрес и почту студии — они подставляются в шапку,
+                подвал, страницу контактов и в ответы онлайн-консультанта.
+            </div>
+        }
+
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Сохранить</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Telegram-боты</h2>
+    </div>
+
+    @* Чек-лист вместо пары бейджей: уведомления молчат по четырём независимым причинам,
+       и «не приходит» лечится только показом того, какое из условий не выполнено. *@
+    <ul class="check-list">
+        @foreach (var check in Model.Checks)
+        {
+            <li class="check-list__row @(check.Ok ? "is-ok" : "is-bad")">
+                <span class="check-list__mark" aria-hidden="true">@(check.Ok ? "✓" : "!")</span>
+                <span class="check-list__body">
+                    <span class="check-list__title">@check.Title</span>
+                    @if (!check.Ok)
+                    {
+                        <span class="check-list__hint">@check.Hint</span>
+                    }
+                </span>
+            </li>
+        }
+    </ul>
+
+    @* Токен можно вписать прямо здесь — это главный путь. Переменные окружения панели
+       остаются для тех, кто выкладывает сайт сам, и они главнее: иначе на хостинге
+       с настроенными переменными форма молча ничего бы не делала. *@
+    <form method="post" asp-page-handler="SaveTokens" class="admin-form">
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Токен клиентского бота</label>
+                <input class="field__input" name="clientToken" type="password" autocomplete="off"
+                       placeholder="@(Model.ClientTokenConfigured ? "уже задан — оставьте пустым" : "123456789:AA…")" />
+                <p class="field__hint">
+                    Сейчас: @Model.ClientTokenSource.
+                    @if (Model.ClientTokenFromEnvironment)
+                    {
+                        <text>Токен задан переменной окружения панели — поле его не перебьёт.</text>
+                    }
+                </p>
+            </div>
+            <div class="field">
+                <label class="field__label">Токен админского бота</label>
+                <input class="field__input" name="adminToken" type="password" autocomplete="off"
+                       placeholder="@(Model.AdminTokenConfigured ? "уже задан — оставьте пустым" : "123456789:AA…")" />
+                <p class="field__hint">
+                    Сейчас: @Model.AdminTokenSource.
+                    @if (Model.AdminTokenFromEnvironment)
+                    {
+                        <text>Токен задан переменной окружения панели — поле его не перебьёт.</text>
+                    }
+                </p>
+            </div>
+        </div>
+
+        <div class="admin-form__grid">
+            <label class="checkbox">
+                <input type="checkbox" name="clearClientToken" value="true" />
+                <span>Удалить сохранённый токен клиентского бота</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" name="clearAdminToken" value="true" />
+                <span>Удалить сохранённый токен админского бота</span>
+            </label>
+        </div>
+
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Сохранить токены</button>
+        </div>
+
+        <p class="admin-muted" style="margin-top:10px;">
+            Токен выдаёт <code>@@BotFather</code> в Telegram: <code>/mybots</code> → нужный бот → API Token.
+            Сохранённый токен применяется сразу, перезапускать сайт не нужно.
+        </p>
+    </form>
+
+    <div class="alert alert--info is-visible">
+        <strong>Зачем два бота.</strong> Меню команд и кнопка Mini App в Telegram задаются
+        <em>на бота, а не на пользователя</em>. Клиентский бот (@@elora_studio_bot) — витрина:
+        запись, «Мои записи», перенос и отмена. Админский — рабочий инструмент: сводка дня,
+        клиенты, статистика.
+    </div>
+
+    @if (Model.AdminBotLink is not null)
+    {
+        <p class="admin-muted" style="margin-bottom:12px;">
+            Админский бот: <a href="@Model.AdminBotLink" target="_blank" rel="noopener">@Model.AdminBotLink</a> —
+            напишите ему <code>/start</code>, он ответит вашим Chat ID.
+        </p>
+    }
+
+    <form method="post" asp-page-handler="SaveTelegram" class="admin-form">
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Имя клиентского бота (без @@)</label>
+                <input class="field__input" name="botUsername" value="@Model.Values.GetValueOrDefault("Telegram.BotUsername")"
+                       placeholder="elora_studio_bot" />
+            </div>
+            <div class="field">
+                <label class="field__label">Имя админского бота (без @@)</label>
+                <input class="field__input" name="adminBotUsername" value="@Model.Values.GetValueOrDefault("Telegram.AdminBotUsername")"
+                       placeholder="elora_admin_bot" />
+            </div>
+            <div class="field">
+                <label class="field__label">Chat ID администратора</label>
+                <input class="field__input" name="adminChatId" value="@Model.Values.GetValueOrDefault("Telegram.AdminChatId")"
+                       placeholder="123456789" />
+            </div>
+            <div class="field">
+                <label class="field__label">Напомнить за, часов</label>
+                <input class="field__input" name="reminderHoursBefore" type="number" min="1" max="168"
+                       value="@(Model.Values.GetValueOrDefault("Telegram.ReminderHoursBefore") ?? "24")" />
+            </div>
+        </div>
+
+        <label class="checkbox" style="margin-bottom:12px;">
+            <input type="checkbox" name="enabled" value="true"
+                   checked="@(Model.Values.GetValueOrDefault("Telegram.Enabled") == "true")" />
+            <span>Уведомления включены (новые записи, отмены, переносы, напоминания)</span>
+        </label>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="notifyOnNewBooking" value="true"
+                   checked="@(Model.Values.GetValueOrDefault("Telegram.NotifyOnNewBooking") != "false")" />
+            <span>Сообщать администратору о каждой новой записи</span>
+        </label>
+
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Сохранить</button>
+        </div>
+    </form>
+
+    <div class="admin-actions-row" style="margin-top:14px;">
+        <form method="post" asp-page-handler="BotInfo">
+            <button type="submit" class="btn btn--ghost btn--sm">Проверить токены и подтянуть имена</button>
+        </form>
+        <form method="post" asp-page-handler="TestTelegram">
+            <button type="submit" class="btn btn--ghost btn--sm">Тест: администратору</button>
+        </form>
+        <form method="post" asp-page-handler="TestClient">
+            <button type="submit" class="btn btn--ghost btn--sm">Тест: клиентский бот</button>
+        </form>
+        <form method="post" asp-page-handler="MiniApp">
+            <button type="submit" class="btn btn--ghost btn--sm">Поставить кнопку Mini App</button>
+        </form>
+        <form method="post" asp-page-handler="ClientButton">
+            <button type="submit" class="btn btn--ghost btn--sm">Убрать кнопку «Сайт» у клиентского бота</button>
+        </form>
+    </div>
+
+    @* Mini App Telegram открывает только по HTTPS — это его требование, не наше.
+       Пока сайт на http, кнопку не поставить, и об этом надо сказать прямо здесь. *@
+    <div class="admin-kv" style="margin-top:16px;">
+        <div class="admin-kv__row">
+            <span>Адрес сайта для Telegram</span>
+            <span class="admin-muted">@(Model.SiteUrl ?? "не задан")</span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Кнопка Mini App в админском боте</span>
+            @if (Model.SiteUrlIsHttps)
+            {
+                <span class="status-badge is-confirmed">можно поставить</span>
+            }
+            else
+            {
+                <span class="status-badge is-pending">нужен HTTPS</span>
+            }
+        </div>
+    </div>
+
+    @if (!Model.SiteUrlIsHttps)
+    {
+        <p class="admin-muted" style="margin-top:10px;">
+            Telegram открывает мини-приложения только по HTTPS. Включите бесплатный сертификат
+            в панели хостинга (SSL/TLS), дождитесь, пока сайт откроется по <code>https://</code>,
+            затем поставьте адрес в переменную <code>Site__PublicUrl</code> и нажмите кнопку выше.
+        </p>
+    }
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Возврат клиентов</h2>
+        <span class="admin-muted">Кого показывать в разделе «Клиенты» → «Пора напомнить»</span>
+    </div>
+
+    <form method="post" asp-page-handler="SaveClients" class="admin-form">
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Считать нормой, недель между визитами</label>
+                <input class="field__input" name="winBackWeeks" type="number" min="1" max="52"
+                       value="@(Model.Values.GetValueOrDefault("Clients.WinBackWeeks") ?? "3")" />
+            </div>
+        </div>
+        <p class="admin-muted" style="margin-bottom:14px;">
+            Клиент попадает в список, если с последнего <em>завершённого</em> визита прошло больше
+            этого срока и новой записи у него нет. Приглашённым повторно не пишем две недели,
+            чтобы напоминания не превратились в спам.
+        </p>
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Сохранить</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Пароль администратора</h2>
+    </div>
+
+    <form method="post" asp-page-handler="ChangePassword" class="admin-form">
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Текущий пароль</label>
+                <input class="field__input" name="currentPassword" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Новый пароль</label>
+                <input class="field__input" name="newPassword" type="password" autocomplete="new-password"
+                       minlength="6" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Повторите новый пароль</label>
+                <input class="field__input" name="confirmPassword" type="password" autocomplete="new-password"
+                       minlength="6" required />
+            </div>
+        </div>
+
+        <div class="admin-actions-row">
+            <button type="submit" class="btn btn--sm">Изменить пароль</button>
+        </div>
+    </form>
+
+    @* Смена пароля требует текущий — так и надо: иначе угнанная сессия закрепляется
+       в аккаунте навсегда. Но если пароль потерян, войти становится нечем, поэтому
+       остаётся аварийный путь через переменную окружения панели. *@
+    @if (Model.ResetPasswordArmed)
+    {
+        <div class="alert alert--error is-visible" style="margin-top:14px;">
+            <strong>Задана переменная <code>ELORA_ADMIN_RESET_PASSWORD</code>.</strong>
+            Пока она есть, при каждом запуске сайта пароль администратора ставится на её значение,
+            и смена пароля этой формой не сохранится. Войдите и <strong>удалите переменную</strong>
+            в панели хостинга (Скриптинг → переменные окружения).
+        </div>
+    }
+
+    <details class="admin-details" style="margin-top:14px;">
+        <summary class="admin-details__summary">
+            <span class="is-strong">Пароль потерян — как войти</span>
+        </summary>
+        <div style="padding:12px 0 0;">
+            <p class="admin-muted" style="margin:0 0 10px;">
+                Пароль хранится в базе хешем: прочитать его обратно нельзя, и показать нечего.
+                Есть два пути.
+            </p>
+            <p class="admin-muted" style="margin:0 0 10px;">
+                <strong>1. Обычный.</strong> Войти в админку и сменить пароль формой выше —
+                понадобится текущий пароль.
+            </p>
+            <p class="admin-muted" style="margin:0 0 10px;">
+                <strong>2. Аварийный, если пароль забыт совсем.</strong> В панели хостинга
+                (Скриптинг → переменные окружения) добавить переменную
+                <code>ELORA_ADMIN_RESET_PASSWORD</code> со новым паролем (от 8 символов) и
+                перезапустить сайт (Обзор → «Быстрые действия» → «Перезапуск»). При запуске
+                пароль администратора ставится на это значение. Войти, сменить пароль формой
+                выше и <strong>удалить переменную</strong>.
+            </p>
+            <p class="admin-muted" style="margin:0;">
+                Кнопки «сбросить, не зная текущего» здесь нет намеренно: с ней любая угнанная
+                сессия закреплялась бы в аккаунте навсегда. Переменную может задать только тот,
+                у кого есть доступ к панели хостинга.
+            </p>
+        </div>
+    </details>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Система</h2>
+    </div>
+
+    <div class="admin-kv">
+        <div class="admin-kv__row">
+            <span>База данных</span>
+            <span class="admin-muted">SQLite · elora.db</span>
+        </div>
+        <div class="admin-kv__row">
+            <span>Проверка состояния</span>
+            <a class="admin-muted" href="/healthz" target="_blank" rel="noopener">/healthz</a>
+        </div>
+        <div class="admin-kv__row">
+            <span>Резервные копии</span>
+            <span class="admin-muted">
+                @if (Model.Backups.Count == 0)
+                {
+                    <text>ещё нет</text>
+                }
+                else
+                {
+                    @($"{Model.Backups.Count} шт., последняя {Model.Backups[0].CreatedAt:dd.MM.yyyy}")
+                }
+            </span>
+        </div>
+    </div>
+
+    @* Копия делается раз в сутки сама и хранится рядом с базой. Наружу с сайта не отдаётся:
+       в базе телефоны клиентов и, если владелец вписал их в админке, токены ботов.
+       Забирать — по FTP или через WebFTP панели: своего бэкапа сайта на бесплатном тарифе нет. *@
+    <p class="admin-muted" style="margin-top:10px;">
+        Копия базы делается автоматически раз в сутки и хранится рядом с самой базой
+        (папка <code>App_Data/backups</code>, хранятся последние 14). С сайта копия не отдаётся:
+        в ней телефоны клиентов, а если токены ботов вписаны в админку — ещё и сами токены.
+        Забрать её можно по FTP из папки <code>/wwwroot/App_Data/backups/</code>
+        (сервер <code>site93502.siteasp.net</code>, логин <code>site93502</code>, порт 22 — SFTP)
+        либо через WebFTP <code>webftp.monsterasp.net</code>, кнопка «ОТКРЫТЬ» на странице
+        «Обзор» в панели хостинга. Своего резервного копирования сайта на бесплатном тарифе
+        нет, поэтому копии наши.
+        @if (Model.LastBackupDays is > 3)
+        {
+            <br /><strong>Последняя копия старше трёх дней — проверьте, работает ли сайт.</strong>
+        }
+    </p>
+
+    <div class="admin-actions-row" style="margin-top:12px;">
+        <form method="post" asp-page-handler="BackupNow">
+            <button type="submit" class="btn btn--ghost btn--sm">Сделать копию сейчас</button>
+        </form>
+    </div>
+</section>

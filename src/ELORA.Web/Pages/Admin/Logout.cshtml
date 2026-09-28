@@ -1,0 +1,21 @@
+@page
+@model ELORA.Web.Pages.Admin.LogoutModel
+@{
+    // Эта страница никогда не отрисовывается: оба обработчика сразу выполняют
+    // выход и уводят на форму входа. Разметка ниже — только страховка на случай,
+    // если редирект по какой-то причине не сработает.
+    Layout = null;
+    ViewData["Title"] = "Выход";
+}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>Выход — ELORA Admin</title>
+    <meta name="robots" content="noindex, nofollow" />
+</head>
+<body>
+    <p>Вы вышли из админ-панели.</p>
+    <p><a href="/admin/login">Войти снова</a></p>
+</body>
+</html>

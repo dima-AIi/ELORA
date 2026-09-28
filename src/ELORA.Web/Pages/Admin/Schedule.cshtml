@@ -1,0 +1,144 @@
+@page
+@model ELORA.Web.Pages.Admin.ScheduleModel
+@{
+    ViewData["Title"] = "График работы";
+    ViewData["Subtitle"] = "Рабочие часы мастеров и закрытые даты";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Рабочие часы</h2>
+        <span class="admin-muted">Слоты считаются шагом 30 минут</span>
+    </div>
+
+    @if (Model.Masters.Count == 0)
+    {
+        <div class="empty-state">Сначала добавьте мастеров.</div>
+    }
+    else
+    {
+        <div class="admin-accordion">
+            @foreach (var master in Model.Masters)
+            {
+                var hours = Model.HoursByMaster.TryGetValue(master.Id, out var list)
+                    ? list
+                    : new List<WorkingHours>();
+
+                <details class="admin-details" open="@(Model.MasterId == master.Id || Model.Masters.Count == 1)">
+                    <summary class="admin-details__summary">
+                        <span class="is-strong">@master.Name</span>
+                        <span class="admin-muted">
+                            @{
+                                var workingDays = hours.Count(h => h.IsActive);
+                            }
+                            @workingDays из 7 дней
+                        </span>
+                        <span class="status-badge @(master.IsActive ? "is-confirmed" : "is-cancelled")">
+                            @(master.IsActive ? "работает" : "скрыт")
+                        </span>
+                    </summary>
+
+                    <form method="post" asp-page-handler="SaveHours" class="admin-form">
+                        <input type="hidden" name="masterId" value="@master.Id" />
+
+                        <div class="admin-hours">
+                            @for (var day = 0; day < 7; day++)
+                            {
+                                var dayHours = hours.FirstOrDefault(h => h.DayOfWeek == day);
+                                var isOn = dayHours?.IsActive ?? false;
+                                var from = dayHours?.StartTime ?? "09:00";
+                                var to = dayHours?.EndTime ?? "19:00";
+
+                                <div class="admin-hours__row">
+                                    <label class="checkbox admin-hours__day">
+                                        <input type="checkbox" name="days" value="@day" checked="@isOn" />
+                                        <span>@Model.DayNames[day]</span>
+                                    </label>
+                                    <input class="field__input" type="time" name="start@(day)" value="@from" />
+                                    <span class="admin-muted">—</span>
+                                    <input class="field__input" type="time" name="end@(day)" value="@to" />
+                                </div>
+                            }
+                        </div>
+
+                        <div class="admin-actions-row">
+                            <button type="submit" class="btn btn--sm">Сохранить график</button>
+                        </div>
+                    </form>
+                </details>
+            }
+        </div>
+    }
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Закрытые даты</h2>
+        <span class="admin-muted">Отпуск, праздники, личные дела</span>
+    </div>
+
+    <form method="post" asp-page-handler="AddBlocked" class="admin-form admin-form--inline">
+        <div class="field">
+            <label class="field__label">Дата</label>
+            <input class="field__input" type="date" name="date" required />
+        </div>
+        <div class="field">
+            <label class="field__label">Мастер</label>
+            <select class="field__select" name="masterId">
+                <option value="">Все мастера (студия закрыта)</option>
+                @foreach (var master in Model.Masters)
+                {
+                    <option value="@master.Id">@master.Name</option>
+                }
+            </select>
+        </div>
+        <div class="field">
+            <label class="field__label">Причина</label>
+            <input class="field__input" name="reason" placeholder="Отпуск, санитарный день…" />
+        </div>
+        <div class="admin-form__action">
+            <button type="submit" class="btn btn--sm">Закрыть дату</button>
+        </div>
+    </form>
+
+    @if (Model.BlockedDates.Count == 0)
+    {
+        <div class="empty-state" style="margin-top:16px;">Закрытых дат нет.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap" style="margin-top:16px;">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Мастер</th>
+                    <th>Причина</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var blocked in Model.BlockedDates)
+                {
+                    var master = Model.Masters.FirstOrDefault(m => m.Id == blocked.MasterId);
+                    <tr>
+                        <td class="is-strong">
+                            @(DateOnly.TryParse(blocked.Date, out var d)
+                                ? d.ToDateTime(TimeOnly.MinValue).ToString("dd.MM.yyyy")
+                                : blocked.Date)
+                        </td>
+                        <td>@(master?.Name ?? "Все мастера")</td>
+                        <td class="admin-muted">@blocked.Reason</td>
+                        <td>
+                            <form method="post" asp-page-handler="RemoveBlocked" data-confirm="Открыть эту дату для записи?">
+                                <input type="hidden" name="id" value="@blocked.Id" />
+                                <button type="submit" class="admin-mini-btn">Открыть</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

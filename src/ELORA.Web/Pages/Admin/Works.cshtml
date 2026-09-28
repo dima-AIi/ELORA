@@ -1,0 +1,160 @@
+@page
+@model ELORA.Web.Pages.Admin.WorksModel
+@{
+    ViewData["Title"] = "Портфолио";
+    ViewData["Subtitle"] = $"{Model.Items.Count} работ в галерее";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Галерея работ</h2>
+        <span class="admin-muted">Категории совпадают с фильтрами на странице /works</span>
+    </div>
+
+    <div class="works-filters" style="margin-bottom:18px;">
+        <a class="works-filter @(string.IsNullOrWhiteSpace(Model.Category) ? "is-active" : "")"
+           asp-page="/Admin/Works">Все</a>
+        @foreach (var (key, title) in WorkCategories.All)
+        {
+            <a class="works-filter @(Model.Category == key ? "is-active" : "")"
+               asp-page="/Admin/Works" asp-route-category="@key">
+                @title
+                @if (Model.Counts.TryGetValue(key, out var count))
+                {
+                    <span class="admin-muted">@count</span>
+                }
+            </a>
+        }
+    </div>
+
+    <div class="admin-accordion">
+        @foreach (var work in Model.Items)
+        {
+            <details class="admin-details">
+                <summary class="admin-details__summary">
+                    <img class="admin-thumb" src="@work.ImagePath" alt="" loading="lazy" />
+                    <span class="is-strong">@work.Title</span>
+                    <span class="admin-muted">@WorkCategories.Title(work.Category)</span>
+                    <span class="status-badge @(work.IsActive ? "is-confirmed" : "is-cancelled")">
+                        @(work.IsActive ? "на сайте" : "скрыта")
+                    </span>
+                </summary>
+
+                <form method="post" asp-page-handler="Save" class="admin-form">
+                    <input type="hidden" name="id" value="@work.Id" />
+
+                    <div class="admin-form__grid">
+                        <div class="field">
+                            <label class="field__label">Название</label>
+                            <input class="field__input" name="title" value="@work.Title" required />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Категория</label>
+                            <select class="field__select" name="category">
+                                @foreach (var (key, title) in WorkCategories.All)
+                                {
+                                    <option value="@key" selected="@(work.Category == key)">@title</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Мастер</label>
+                            <select class="field__select" name="masterId">
+                                <option value="">Не указан</option>
+                                @foreach (var master in Model.Masters)
+                                {
+                                    <option value="@master.Id" selected="@(work.MasterId == master.Id)">@master.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Порядок</label>
+                            <input class="field__input" name="sortOrder" type="number" value="@work.SortOrder" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Изображение (путь или URL)</label>
+                        <input class="field__input" name="imagePath" value="@work.ImagePath" required />
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Описание</label>
+                        <input class="field__input" name="description" value="@work.Description" />
+                    </div>
+
+                    <label class="checkbox" style="margin-bottom:14px;">
+                        <input type="checkbox" name="isActive" value="true" checked="@work.IsActive" />
+                        <span>Показывать в галерее</span>
+                    </label>
+
+                    <div class="admin-actions-row">
+                        <button type="submit" class="btn btn--sm">Сохранить</button>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="Delete" data-confirm="Удалить работу «@work.Title»?">
+                    <input type="hidden" name="id" value="@work.Id" />
+                    <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                </form>
+            </details>
+        }
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Добавить работу</h2>
+    </div>
+
+    <form method="post" asp-page-handler="Save" class="admin-form">
+        <input type="hidden" name="id" value="0" />
+
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Название</label>
+                <input class="field__input" name="title" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Категория</label>
+                <select class="field__select" name="category">
+                    @foreach (var (key, title) in WorkCategories.All)
+                    {
+                        <option value="@key">@title</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label class="field__label">Мастер</label>
+                <select class="field__select" name="masterId">
+                    <option value="">Не указан</option>
+                    @foreach (var master in Model.Masters)
+                    {
+                        <option value="@master.Id">@master.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label class="field__label">Порядок</label>
+                <input class="field__input" name="sortOrder" type="number" value="0" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label">Изображение (путь или URL)</label>
+            <input class="field__input" name="imagePath" placeholder="/images/works/manicure-05.jpg" required />
+        </div>
+
+        <div class="field">
+            <label class="field__label">Описание</label>
+            <input class="field__input" name="description" />
+        </div>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="isActive" value="true" checked />
+            <span>Показывать в галерее</span>
+        </label>
+
+        <button type="submit" class="btn">Добавить работу</button>
+    </form>
+</section>

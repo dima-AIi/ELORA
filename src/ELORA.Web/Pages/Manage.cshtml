@@ -1,0 +1,166 @@
+@page "/manage/{token}"
+@model ManageModel
+@{
+    ViewData["Title"] = "Моя запись";
+    ViewData["Description"] = "Просмотр, перенос и отмена записи в студии ELORA.";
+    // Адрес содержит секретный токен управления записью. Попадать в индекс поисковика
+    // он не должен ни при каких условиях: по нему чужую запись можно отменить.
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<section class="section">
+    <div class="container">
+        @Html.AntiForgeryToken()
+
+        @if (Model.Booking is null)
+        {
+            <div class="success-card">
+                <div class="success-card__icon">@Icons.Chat(27)</div>
+                <h1 class="success-card__title">Запись не найдена</h1>
+                <p class="success-card__sub">
+                    Ссылка недействительна. Если вы записывались недавно — позвоните нам: @Model.Phone
+                </p>
+                <div class="success-actions" style="margin-top:26px;">
+                    <a class="btn btn--block" asp-page="/Booking">Записаться заново @Icons.Arrow(15)</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            var booking = Model.Booking;
+
+            <div class="success-card" style="max-width:720px;">
+                <div class="success-card__icon">@Icons.Calendar(27)</div>
+                <h1 class="success-card__title" style="font-size:26px;">Ваша запись</h1>
+                <p class="success-card__sub">
+                    @booking.ServiceName · @Money.DateWithWeekday(booking.StartLocal)
+                    в @booking.StartLocal.ToString("HH:mm")
+                </p>
+
+                <div class="success-details">
+                    <div class="summary-row">
+                        <span class="summary-row__label">Статус</span>
+                        <span class="summary-row__value">
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                                @BookingStatuses.Title(booking.Status)
+                            </span>
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Услуга</span>
+                        <span class="summary-row__value">@booking.ServiceName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Мастер</span>
+                        <span class="summary-row__value">@booking.MasterName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Дата и время</span>
+                        <span class="summary-row__value">@booking.StartLocal.ToString("dd.MM.yyyy") · @Money.TimeRange(booking.StartLocal, booking.EndLocal)</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Стоимость</span>
+                        <span class="summary-row__value">@Money.Format(booking.Price)</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(booking.Comment))
+                    {
+                        <div class="summary-row">
+                            <span class="summary-row__label">Комментарий</span>
+                            <span class="summary-row__value">@booking.Comment</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="alert" id="manageAlert" role="alert"></div>
+
+                @if (Model.CanManage)
+                {
+                    <div class="manage-actions">
+                        <button type="button" class="btn btn--ghost" id="toggleReschedule">
+                            Перенести запись @Icons.Calendar(15)
+                        </button>
+                        <button type="button" class="btn btn--danger" id="cancelBooking">
+                            <span class="spinner"></span>
+                            <span class="btn__label">Отменить запись</span>
+                        </button>
+                    </div>
+
+                    <div class="reschedule-box" id="rescheduleBox" hidden>
+                        <h2 class="booking-panel__title" style="font-size:18px;">Перенос записи</h2>
+                        <p class="booking-panel__hint">
+                            Выберите мастера и новое время. Старое время освободится автоматически.
+                        </p>
+
+                        <div class="field">
+                            <label class="field__label" for="rescheduleMaster">Мастер</label>
+                            <select class="field__select" id="rescheduleMaster">
+                                @foreach (var master in Model.AvailableMasters)
+                                {
+                                    <option value="@master.Id" selected="@(master.Id == booking.MasterId)">@master.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="date-strip" id="rescheduleDates" style="margin-top:14px;"></div>
+
+                        <div class="slots-grid" id="rescheduleSlots" style="margin-top:16px;"></div>
+                        <div class="empty-state" id="rescheduleEmpty" hidden>Выберите дату, чтобы увидеть свободное время.</div>
+
+                        <div class="booking-nav">
+                            <button type="button" class="btn" id="confirmReschedule" disabled>
+                                <span class="spinner"></span>
+                                <span class="btn__label">Перенести</span>
+                            </button>
+                            <button type="button" class="btn btn--ghost" id="closeReschedule">Отмена</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="success-card__sub">
+                        Эту запись нельзя изменить. Задайте вопрос по телефону: @Model.Phone
+                    </p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.TelegramLink))
+                {
+                    <div class="alert alert--info is-visible" style="text-align:left;">
+                        Подключите Telegram-бота — он пришлёт подтверждение записи, напомнит
+                        о визите за сутки и позволит перенести или отменить запись прямо в чате.
+                        В открывшемся чате нажмите <strong>Start</strong> (или «Запустить»):
+                        без этого шага Telegram не разрешает боту написать вам первым.
+                    </div>
+                }
+
+                <div class="success-actions" style="margin-top:22px;">
+                    @if (!string.IsNullOrWhiteSpace(Model.TelegramLink))
+                    {
+                        <a class="btn btn--block" href="@Model.TelegramLink" target="_blank" rel="noopener">
+                            @Icons.Telegram(15) Открыть Telegram-бота
+                        </a>
+                    }
+                    <a class="btn btn--ghost btn--block" asp-page="/Index">На главную</a>
+                </div>
+            </div>
+        }
+
+    </div>
+</section>
+
+@if (Model.Booking is not null)
+{
+    <script>
+        window.ELORA_MANAGE = {
+            token: "@Model.Booking.ManageToken",
+            serviceId: @Model.Booking.ServiceId,
+            masterId: @Model.Booking.MasterId
+        };
+    </script>
+}
+
+@section Scripts {
+    @if (Model.Booking is not null && Model.CanManage)
+    {
+        <script src="~/js/manage.js" asp-append-version="true"></script>
+    }
+}

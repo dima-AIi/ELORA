@@ -1,0 +1,152 @@
+@page
+@model ELORA.Web.Pages.Admin.BookingsModel
+@{
+    ViewData["Title"] = "Записи";
+    ViewData["Subtitle"] = $"Найдено: {Model.Items.Count}";
+}
+
+<section class="admin-card">
+    <form method="get" class="admin-filters">
+        <div class="field" style="margin:0;">
+            <label class="field__label" for="Status">Статус</label>
+            <select class="field__select" id="Status" name="Status">
+                <option value="">Все статусы</option>
+                @foreach (var status in BookingStatuses.All)
+                {
+                    <option value="@status" selected="@(Model.Status == status)">@BookingStatuses.Title(status)</option>
+                }
+            </select>
+        </div>
+
+        <div class="field" style="margin:0;">
+            <label class="field__label" for="MasterId">Мастер</label>
+            <select class="field__select" id="MasterId" name="MasterId">
+                <option value="">Все мастера</option>
+                @foreach (var master in Model.Masters)
+                {
+                    <option value="@master.Id" selected="@(Model.MasterId == master.Id)">@master.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="field" style="margin:0;">
+            <label class="field__label" for="From">С даты</label>
+            <input class="field__input" id="From" name="From" type="date" value="@Model.From" />
+        </div>
+
+        <div class="field" style="margin:0;">
+            <label class="field__label" for="To">По дату</label>
+            <input class="field__input" id="To" name="To" type="date" value="@Model.To" />
+        </div>
+
+        <div class="admin-filters__actions">
+            <button type="submit" class="btn btn--sm">Показать</button>
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Bookings">Сбросить</a>
+        </div>
+    </form>
+</section>
+
+<section class="admin-card">
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state">По этим условиям записей нет.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Дата и время</th>
+                    <th>Клиент</th>
+                    <th>Услуга</th>
+                    <th>Мастер</th>
+                    <th>Цена</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var booking in Model.Items)
+                {
+                    <tr>
+                        <td class="admin-muted">@booking.Id</td>
+                        <td class="is-strong">
+                            @booking.StartLocal.ToString("dd.MM.yyyy")<br />
+                            <span class="admin-muted">@Money.TimeRange(booking.StartLocal, booking.EndLocal)</span>
+                        </td>
+                        <td>
+                            @booking.ClientName<br />
+                            <a class="admin-muted" href="tel:@booking.ClientPhone">@booking.ClientPhone</a>
+                            @if (!string.IsNullOrWhiteSpace(booking.ClientTelegramNick))
+                            {
+                                <br />
+                                <span class="admin-muted">@booking.ClientTelegramNick</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(booking.ClientTelegramChatId))
+                            {
+                                <span class="admin-tag">TG</span>
+                            }
+                        </td>
+                        <td>
+                            @booking.ServiceName<br />
+                            <span class="admin-muted">@Money.Duration(booking.DurationMinutes)</span>
+                        </td>
+                        <td>@booking.MasterName</td>
+                        <td>@Money.Format(booking.Price)</td>
+                        <td>
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                                @BookingStatuses.Title(booking.Status)
+                            </span>
+                        </td>
+                        <td>
+                            <div class="admin-row-actions">
+                                @if (booking.Status == BookingStatuses.Pending)
+                                {
+                                    <form method="post" asp-page-handler="Status">
+                                        <input type="hidden" name="id" value="@booking.Id" />
+                                        <input type="hidden" name="status" value="@BookingStatuses.Confirmed" />
+                                        <button type="submit" class="admin-mini-btn">Подтвердить</button>
+                                    </form>
+                                }
+                                @if (booking.Status == BookingStatuses.Confirmed)
+                                {
+                                    <form method="post" asp-page-handler="Status">
+                                        <input type="hidden" name="id" value="@booking.Id" />
+                                        <input type="hidden" name="status" value="@BookingStatuses.Completed" />
+                                        <button type="submit" class="admin-mini-btn">Завершить</button>
+                                    </form>
+                                }
+                                @if (booking.IsActiveStatus)
+                                {
+                                    <form method="post" asp-page-handler="Status"
+                                          data-confirm="Отменить запись №@booking.Id?">
+                                        <input type="hidden" name="id" value="@booking.Id" />
+                                        <input type="hidden" name="status" value="@BookingStatuses.Cancelled" />
+                                        <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Отменить</button>
+                                    </form>
+                                }
+                                @* «Открыть» ведёт в админскую карточку записи, а не на страницу
+                                   клиента: там телефон, ник в Telegram и заметка о клиенте,
+                                   а не надпись «Ваша запись». Клиентский экран — отдельной
+                                   ссылкой внутри карточки. *@
+                                <a class="admin-mini-btn" asp-page="/Admin/Booking" asp-route-id="@booking.Id">Открыть</a>
+                                @* Удаление только для закрытых записей: активную сначала отменяют. *@
+                                @if (!booking.IsActiveStatus)
+                                {
+                                    <form method="post" asp-page-handler="Delete"
+                                          data-confirm="Удалить запись №@booking.Id насовсем? Вернуть её будет нельзя.">
+                                        <input type="hidden" name="id" value="@booking.Id" />
+                                        <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

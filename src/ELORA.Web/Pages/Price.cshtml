@@ -1,0 +1,100 @@
+@page
+@model PriceModel
+@{
+    ViewData["Title"] = "Прайс-лист";
+    ViewData["Description"] = "Прозрачные цены на все услуги студии ELORA: маникюр, педикюр, ресницы, брови, волосы и тату.";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <div class="breadcrumbs">
+            <a asp-page="/Index">Главная</a><span>/</span><span>Прайс</span>
+        </div>
+        <h1 class="page-hero__title">Прайс-лист</h1>
+        <p class="page-hero__sub">
+            Прозрачные цены на все услуги. Итоговую стоимость мастер подтверждает перед началом процедуры.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="pricing" data-reveal>
+            <div class="pricing__head">
+                <div>
+                    <h2 class="pricing__title">Все услуги и цены</h2>
+                    <p class="pricing__sub">Обновлено @DateTime.Now.ToString("dd.MM.yyyy")</p>
+                </div>
+                <a class="btn btn--light btn--sm" asp-page="/Price" asp-page-handler="Download">Скачать прайс (CSV)</a>
+            </div>
+
+            <div class="pricing__grid">
+                @foreach (var group in Model.Groups)
+                {
+                    <div class="price-col">
+                        <div class="price-col__title">@group.Title</div>
+                        @foreach (var item in group.Items)
+                        {
+                            <div class="price-row">
+                                <span class="price-row__name">@item.Name</span>
+                                <span class="price-row__value">@item.PriceLabel</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="price-acc" data-accordion="single">
+                @foreach (var group in Model.Groups)
+                {
+                    <div class="price-acc__item">
+                        <button class="price-acc__head" type="button" aria-expanded="false">
+                            <span>@group.Title</span>
+                            @Icons.ChevronDown(15)
+                        </button>
+                        <div class="price-acc__body">
+                            @foreach (var item in group.Items)
+                            {
+                                <div class="price-row">
+                                    <span class="price-row__name">@item.Name</span>
+                                    <span class="price-row__value">@item.PriceLabel</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <p class="demo-note">
+            Цены демонстрационные: студии не существует, услуги не оказываются.
+            Прайс показывает, как выглядел бы список настоящей студии.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="section-head">
+            <div class="section-head__text">
+                <h2 class="section-title">Длительность процедур</h2>
+                <p class="section-sub">Планируйте визит заранее — свободные слоты видны при записи</p>
+            </div>
+            <a class="link-arrow" asp-page="/Booking">Записаться @Icons.Arrow(15)</a>
+        </div>
+
+        <div class="info-grid">
+            @foreach (var service in Model.Services)
+            {
+                <article class="card">
+                    <div class="info-card__title">@service.Name</div>
+                    <p class="info-card__text">@service.CategoryName · @Money.Duration(service.DurationMinutes)</p>
+                    <div class="summary-row" style="margin-top:12px;border-bottom:0;padding-bottom:0;">
+                        <span class="summary-row__label">Стоимость</span>
+                        <span class="summary-row__value">@Money.Format(service.Price)</span>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>

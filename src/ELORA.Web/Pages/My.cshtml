@@ -1,0 +1,159 @@
+@page "/my"
+@model MyModel
+@{
+    ViewData["Title"] = "Мои записи";
+    ViewData["Description"] = "Записи, которые этот браузер помнит: посмотреть, перенести или отменить.";
+    // Страница показывает записи конкретного браузера по токену из cookie. В поиске ей
+    // делать нечего: для поисковика это пустая страница, а для человека — его личные данные.
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<section class="section">
+    <div class="container">
+
+        @if (TempData["Flash"] is string flash)
+        {
+            <div class="alert alert--success is-visible" role="status" style="margin-bottom:18px;">@flash</div>
+        }
+
+        <div class="success-card" style="max-width:760px;">
+            <div class="success-card__icon">@Icons.Calendar(27)</div>
+            <h1 class="success-card__title" style="font-size:26px;">Мои записи</h1>
+
+            @if (!Model.AnythingRemembered)
+            {
+                @* Пусто бывает в двух случаях, и оба не поломка: человек здесь впервые либо чистил
+                   cookie. Второй случай объясняем — иначе выглядит как потерянная запись. *@
+                <p class="success-card__sub">
+                    Этот браузер пока ничего не помнит. Так бывает, если вы ещё не записывались
+                    или чистили историю в браузере.
+                </p>
+                <p class="success-card__sub">
+                    Если запись была, а её здесь нет — она на месте, просто откройте ссылку
+                    из Telegram-бота или позвоните нам: @Model.Phone
+                </p>
+                <div class="success-actions" style="margin-top:22px;">
+                    <a class="btn btn--block" asp-page="/Booking">Записаться @Icons.Arrow(15)</a>
+                </div>
+            }
+            else
+            {
+                <p class="success-card__sub">
+                    Сайт запомнил ваши записи в этом браузере — регистрация не нужна.
+                    Ниже можно открыть запись, перенести её или отменить.
+                </p>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.TelegramLink))
+        {
+            @* Одна привязка чата закрывает сразу всё: подтверждение записи, напоминание за сутки,
+               перенос и отмену кнопками. Показываем, пока чат не подключён: страница успешной
+               записи — единственное другое место со ссылкой, а её закрывают и забывают. *@
+            <div class="success-card" style="max-width:760px; margin-top:20px; text-align:left;">
+                <h2 class="booking-panel__title" style="font-size:18px;">Подключите Telegram</h2>
+                <p class="success-card__sub" style="text-align:left;">
+                    Бот пришлёт подтверждение записи, напомнит о визите за сутки и позволит
+                    перенести или отменить запись одной кнопкой — заходить на сайт не нужно.
+                    В открывшемся чате нажмите <strong>Start</strong> (или «Запустить»):
+                    без этого шага Telegram не разрешает боту написать вам первым.
+                </p>
+                <div class="success-actions" style="margin-top:16px;">
+                    <a class="btn btn--block" href="@Model.TelegramLink" target="_blank" rel="noopener">
+                        @Icons.Telegram(15) Открыть Telegram-бота
+                    </a>
+                </div>
+            </div>
+        }
+
+        @if (Model.Upcoming.Count > 0)
+        {
+            <h2 class="booking-panel__title" style="margin-top:34px;">Предстоит</h2>
+
+            @foreach (var booking in Model.Upcoming)
+            {
+                <div class="card" style="margin-top:14px;">
+                    <div class="summary-row">
+                        <span class="summary-row__label">Услуга</span>
+                        <span class="summary-row__value">@booking.ServiceName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Мастер</span>
+                        <span class="summary-row__value">@booking.MasterName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Дата и время</span>
+                        <span class="summary-row__value">
+                            @Money.DateWithWeekday(booking.StartLocal) · @Money.TimeRange(booking.StartLocal, booking.EndLocal)
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Статус</span>
+                        <span class="summary-row__value">
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                                @BookingStatuses.Title(booking.Status)
+                            </span>
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Стоимость</span>
+                        <span class="summary-row__value">@Money.Format(booking.Price)</span>
+                    </div>
+
+                    <div class="success-actions" style="margin-top:18px;">
+                        <a class="btn btn--ghost btn--block" href="/manage/@booking.ManageToken">
+                            Открыть запись @Icons.Arrow(15)
+                        </a>
+                    </div>
+                </div>
+            }
+        }
+
+        @if (Model.History.Count > 0)
+        {
+            <h2 class="booking-panel__title" style="margin-top:34px;">Прошлые</h2>
+
+            @foreach (var booking in Model.History)
+            {
+                <div class="card" style="margin-top:14px;">
+                    <div class="summary-row">
+                        <span class="summary-row__label">
+                            @booking.ServiceName · @booking.StartLocal.ToString("dd.MM.yyyy")
+                        </span>
+                        <span class="summary-row__value">
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">
+                                @BookingStatuses.Title(booking.Status)
+                            </span>
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Мастер</span>
+                        <span class="summary-row__value">@booking.MasterName</span>
+                    </div>
+
+                    <div class="success-actions" style="margin-top:18px;">
+                        <a class="btn btn--ghost btn--block" asp-page="/Booking">Записаться снова @Icons.Arrow(15)</a>
+                    </div>
+                </div>
+            }
+        }
+
+        @if (Model.AnythingRemembered)
+        {
+            <div class="success-card" style="max-width:760px; margin-top:34px;">
+                <h2 class="booking-panel__title" style="font-size:18px;">Это не ваши записи?</h2>
+                <p class="success-card__sub">
+                    Сайт помнит записи в браузере, а не по имени или телефону. На чужом или общем
+                    компьютере нажмите «Забыть этот браузер» — записи перестанут показываться здесь.
+                    Ссылки из Telegram при этом продолжают работать.
+                </p>
+
+                <form method="post" asp-page-handler="Forget" style="margin-top:18px;"
+                      data-confirm="Забыть записи в этом браузере? Сами записи не отменятся — только перестанут показываться здесь.">
+                    <button type="submit" class="btn btn--ghost btn--block">Забыть этот браузер</button>
+                </form>
+            </div>
+        }
+
+    </div>
+</section>

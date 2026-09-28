@@ -1,0 +1,218 @@
+@page
+@model ELORA.Web.Pages.Admin.ClientsModel
+@using ELORA.Web.Helpers
+@{
+    ViewData["Title"] = "Клиенты";
+    ViewData["Subtitle"] = $"Всего: {Model.TotalCount} · с Telegram: {Model.TelegramCount}";
+}
+
+<div class="admin-stats">
+    <div class="admin-stat">
+        <div class="admin-stat__label">Клиентов всего</div>
+        <div class="admin-stat__value">@Model.TotalCount</div>
+        <div class="admin-stat__meta">подключены к боту — @Model.TelegramCount</div>
+    </div>
+    <div class="admin-stat">
+        <div class="admin-stat__label">Оставили за всё время</div>
+        <div class="admin-stat__value">@Money.Format(Model.TotalRevenue)</div>
+        <div class="admin-stat__meta">по завершённым визитам</div>
+    </div>
+    <div class="admin-stat">
+        <div class="admin-stat__label">Были за месяц</div>
+        <div class="admin-stat__value">@Model.ActiveThisMonth</div>
+        <div class="admin-stat__meta">визиты за последние 30 дней</div>
+    </div>
+    <div class="admin-stat @(Model.DueForVisit.Count > 0 ? "admin-stat--alert" : "")">
+        <div class="admin-stat__label">Пора напомнить</div>
+        <div class="admin-stat__value">@Model.DueForVisit.Count</div>
+        <div class="admin-stat__meta">
+            @if (Model.DueWithoutTelegram > 0)
+            {
+                @($"{Model.DueWithoutTelegram} — только звонком")
+            }
+            else
+            {
+                @($"без визита больше {Model.ThresholdWeeks} {Money.Weeks(Model.ThresholdWeeks)}")
+            }
+        </div>
+    </div>
+</div>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Пора напомнить</h2>
+        <span class="admin-muted">
+            Последний визит больше @Model.ThresholdWeeks @Money.Weeks(Model.ThresholdWeeks) назад, новой записи нет
+        </span>
+    </div>
+
+    @if (Model.DueForVisit.Count == 0)
+    {
+        <div class="empty-state">Все клиенты либо записаны, либо были недавно — напоминать некому.</div>
+    }
+    else
+    {
+        @if (Model.DueWithoutTelegram > 0)
+        {
+            <div class="alert alert--info is-visible">
+                @Model.DueWithoutTelegram @Money.Plural(Model.DueWithoutTelegram, "человек", "человека", "человек")
+                из списка не подключён к боту — им бот написать не сможет, нужен звонок.
+                Телефон в таблице кликабельный.
+            </div>
+        }
+
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Клиент</th>
+                    <th>Последний визит</th>
+                    <th>Визитов</th>
+                    <th>Оставил</th>
+                    <th>Связь</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var client in Model.DueForVisit)
+                {
+                    <tr>
+                        <td class="is-strong">
+                            <a asp-page="/Admin/Clients" asp-route-Search="@client.Phone">@client.Name</a>
+                        </td>
+                        <td>
+                            @client.SinceVisitText<br />
+                            <span class="admin-muted">@client.LastVisit?.ToString("dd.MM.yyyy")</span>
+                        </td>
+                        <td>@client.Visits</td>
+                        <td>@Money.Format(client.TotalSpent)</td>
+                        <td>
+                            <a class="admin-muted" href="tel:@client.Phone">@client.Phone</a>
+                            @if (client.TelegramConnected)
+                            {
+                                <span class="admin-tag">TG</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="admin-row-actions">
+                                @if (client.TelegramConnected)
+                                {
+                                    <form method="post" asp-page-handler="Invite">
+                                        <input type="hidden" name="id" value="@client.Id" />
+                                        <input type="hidden" name="search" value="@Model.Search" />
+                                        <button type="submit" class="admin-mini-btn">Пригласить</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="admin-muted">звонок</span>
+                                }
+                                <a class="admin-mini-btn" asp-page="/Admin/Client" asp-route-id="@client.Id">Карточка</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.DueForVisit.Any(c => c.TelegramConnected))
+        {
+            <div class="admin-actions-row" style="margin-top:14px;">
+                <form method="post" asp-page-handler="InviteAll"
+                      data-confirm="Отправить приглашение всем, кто в списке и подключён к боту?">
+                    <button type="submit" class="btn btn--sm">Пригласить всех, кто в боте</button>
+                </form>
+            </div>
+        }
+    }
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Все клиенты</h2>
+        <span class="admin-muted">Найдено: @Model.Items.Count</span>
+    </div>
+
+    <form method="get" class="admin-filters">
+        <div class="field" style="margin:0;">
+            <label class="field__label" for="Search">Имя или телефон</label>
+            <input class="field__input" id="Search" name="Search" value="@Model.Search" placeholder="Анна или +7 900" />
+        </div>
+        <div class="admin-filters__actions">
+            <button type="submit" class="btn btn--sm">Найти</button>
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Clients">Сбросить</a>
+        </div>
+    </form>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state">
+            @(string.IsNullOrWhiteSpace(Model.Search) ? "Клиентов пока нет." : "Никого не нашлось — попробуйте другой запрос.")
+        </div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>Клиент</th>
+                    <th>Телефон</th>
+                    <th>Визитов</th>
+                    <th>Последний визит</th>
+                    <th>Ближайшая запись</th>
+                    <th>Оставил</th>
+                    <th>Заметка</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var client in Model.Items)
+                {
+                    <tr>
+                        <td class="is-strong">
+                            @client.Name
+                            @if (client.TelegramConnected)
+                            {
+                                <span class="admin-tag">TG</span>
+                            }
+                        </td>
+                        <td><a class="admin-muted" href="tel:@client.Phone">@client.Phone</a></td>
+                        <td>@client.Visits</td>
+                        <td>
+                            @if (client.LastVisit is not null)
+                            {
+                                @client.LastVisit.Value.ToString("dd.MM.yyyy")
+                                <br />
+                                <span class="admin-muted">@client.SinceVisitText</span>
+                            }
+                            else
+                            {
+                                <span class="admin-muted">ещё не была</span>
+                            }
+                        </td>
+                        <td>
+                            @if (client.NextVisit is not null)
+                            {
+                                <span class="is-strong">@client.NextVisit.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                            }
+                            else
+                            {
+                                <span class="admin-muted">—</span>
+                            }
+                        </td>
+                        <td>@Money.Format(client.TotalSpent)</td>
+                        <td class="admin-muted">@(string.IsNullOrWhiteSpace(client.Notes) ? "—" : client.Notes)</td>
+                        <td>
+                            <div class="admin-row-actions">
+                                <a class="admin-mini-btn" asp-page="/Admin/Client" asp-route-id="@client.Id">Карточка</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

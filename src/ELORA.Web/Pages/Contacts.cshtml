@@ -1,0 +1,150 @@
+@page
+@model ContactsModel
+@{
+    ViewData["Title"] = "Контакты";
+    ViewData["Description"] = "Адрес, телефон, часы работы и соцсети студии красоты ELORA.";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <div class="breadcrumbs">
+            <a asp-page="/Index">Главная</a><span>/</span><span>Контакты</span>
+        </div>
+        <h1 class="page-hero__title">Контакты</h1>
+        <p class="page-hero__sub">
+            Позвоните, напишите в Telegram или просто приезжайте — но лучше записаться заранее,
+            чтобы вас ждал именно ваш мастер.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="contacts-layout">
+            <div class="contact-list">
+                <div class="contact-item">
+                    <span class="contact-item__icon">@Icons.Phone(16)</span>
+                    <div>
+                        <div class="contact-item__label">Телефон</div>
+                        <a class="contact-item__value" href="tel:@Model.PhoneHref">@Model.Phone</a>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <span class="contact-item__icon">@Icons.MapPin(16)</span>
+                    <div>
+                        <div class="contact-item__label">Адрес</div>
+                        <div class="contact-item__value">@Model.Address</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <span class="contact-item__icon">@Icons.Clock(16)</span>
+                    <div>
+                        <div class="contact-item__label">Часы работы</div>
+                        <div class="contact-item__value">@Model.WorkHours</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <span class="contact-item__icon">@Icons.Chat(16)</span>
+                    <div>
+                        <div class="contact-item__label">Почта</div>
+                        <a class="contact-item__value" href="mailto:@Model.Email">@Model.Email</a>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <span class="contact-item__icon">@Icons.Telegram(16)</span>
+                    <div>
+                        <div class="contact-item__label">Telegram</div>
+                        <div class="contact-item__value">Напишите нам — ответим в течение дня</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="map-frame">
+                    <div>
+                        <div class="map-frame__pin">@Icons.MapPin(22)</div>
+                        <div class="map-frame__title">@Model.Address</div>
+                        <div class="map-frame__hint">
+                            Мы в центре города, вход со стороны улицы.<br />
+                            Рядом есть бесплатная парковка.
+                        </div>
+                        <a class="btn btn--ghost btn--sm" style="margin-top:14px;"
+                           href="https://yandex.ru/maps/?text=@Uri.EscapeDataString(Model.Address)"
+                           target="_blank" rel="noopener">Открыть в Яндекс.Картах @Icons.Arrow(14)</a>
+                    </div>
+                </div>
+
+                @* Пустые ссылки не показываем: иконка, ведущая на главную чужого сервиса,
+                   хуже, чем отсутствие иконки. *@
+                <div class="socials" style="margin-top:16px;">
+                    @if (!string.IsNullOrWhiteSpace(Model.Vk))
+                    {
+                        <a href="@Model.Vk" target="_blank" rel="noopener" aria-label="ВКонтакте">@Icons.Vk(15)</a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Instagram))
+                    {
+                        <a href="@Model.Instagram" target="_blank" rel="noopener" aria-label="Instagram">@Icons.Instagram(15)</a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Telegram))
+                    {
+                        <a href="@Model.Telegram" target="_blank" rel="noopener" aria-label="Telegram">@Icons.Telegram(15)</a>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.Instagram))
+                {
+                    <p class="footer__meta-note">
+                        Instagram принадлежит компании Meta Platforms Inc., деятельность которой
+                        признана экстремистской и запрещена на территории Российской Федерации.
+                    </p>
+                }
+            </div>
+        </div>
+
+        @* Пометка нужна именно здесь: страницу контактов открывают, чтобы приехать.
+           Адрес вымышленный, и без предупреждения человек потратит время на дорогу. *@
+        <p class="demo-note">
+            Контакты демонстрационные: адрес, телефон и почта вымышленные, студии по этому адресу нет.
+            Проект сделан как портфолио и не оказывает услуг.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="info-grid">
+            <article class="card">
+                <div class="info-card__icon">@Icons.Calendar(18)</div>
+                <div class="info-card__title">Запись онлайн</div>
+                <p class="info-card__text">
+                    Самый быстрый способ — выбрать услугу и время на сайте.
+                    Подтверждение придёт сразу, а в Telegram ещё и напоминание за сутки.
+                </p>
+                <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/Booking">Записаться @Icons.Arrow(14)</a>
+            </article>
+
+            <article class="card">
+                <div class="info-card__icon">@Icons.UserCheck(18)</div>
+                <div class="info-card__title">@Model.MasterCount мастера</div>
+                <p class="info-card__text">
+                    Маникюр, педикюр, ресницы, брови, волосы и тату.
+                    Каждый мастер работает по своему графику — свободное время видно при записи.
+                </p>
+                <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/About">Познакомиться @Icons.Arrow(14)</a>
+            </article>
+
+            <article class="card">
+                <div class="info-card__icon">@Icons.Chat(18)</div>
+                <div class="info-card__title">Частые вопросы</div>
+                <p class="info-card__text">
+                    Как перенести запись, что делать при опоздании, можно ли с ребёнком —
+                    собрали ответы в одном месте.
+                </p>
+                <a class="btn btn--ghost btn--sm" style="margin-top:14px;" asp-page="/Faq">Читать @Icons.Arrow(14)</a>
+            </article>
+        </div>
+    </div>
+</section>

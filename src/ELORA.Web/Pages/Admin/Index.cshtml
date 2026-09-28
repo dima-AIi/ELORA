@@ -1,0 +1,214 @@
+@page
+@model ELORA.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Дашборд";
+    ViewData["Subtitle"] = DateTime.Now.ToString("d MMMM yyyy, dddd", new System.Globalization.CultureInfo("ru-RU"));
+}
+
+<div class="admin-stats">
+    <div class="admin-stat">
+        <div class="admin-stat__label">Сегодня</div>
+        <div class="admin-stat__value">@Model.Stats.TodayCount</div>
+        <div class="admin-stat__meta">из них активных — @Model.Stats.TodayActiveCount</div>
+    </div>
+    <div class="admin-stat">
+        <div class="admin-stat__label">Ожидают подтверждения</div>
+        <div class="admin-stat__value">@Model.Stats.PendingCount</div>
+        <div class="admin-stat__meta">
+            <a asp-page="/Admin/Bookings" asp-route-status="Pending">Открыть список</a>
+        </div>
+    </div>
+    <div class="admin-stat">
+        <div class="admin-stat__label">Выручка за месяц</div>
+        <div class="admin-stat__value">@Money.Format(Model.Stats.MonthRevenue)</div>
+        <div class="admin-stat__meta">по подтверждённым и завершённым</div>
+    </div>
+    <div class="admin-stat">
+        <div class="admin-stat__label">Всего записей</div>
+        <div class="admin-stat__value">@Model.Stats.TotalCount</div>
+        <div class="admin-stat__meta">отменённых — @Model.Stats.CancelledCount</div>
+    </div>
+</div>
+
+<div class="admin-grid-2">
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Записи на сегодня</h2>
+            <a class="link-arrow" asp-page="/Admin/Bookings">Все записи @Icons.Arrow(14)</a>
+        </div>
+
+        @if (Model.Stats.TodayBookings.Count == 0)
+        {
+            <div class="empty-state">На сегодня записей нет.</div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                    <tr>
+                        <th>Время</th>
+                        <th>Клиент</th>
+                        <th>Услуга</th>
+                        <th>Мастер</th>
+                        <th>Статус</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var booking in Model.Stats.TodayBookings)
+                    {
+                        <tr>
+                            <td class="is-strong">@booking.StartLocal.ToString("HH:mm")</td>
+                            <td>
+                                @booking.ClientName<br />
+                                <span class="admin-muted">@booking.ClientPhone</span>
+                            </td>
+                            <td>@booking.ServiceName</td>
+                            <td>@booking.MasterName</td>
+                            <td><span class="status-badge @BookingStatuses.CssClass(booking.Status)">@Model.StatusTitle(booking.Status)</span></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Ближайшие 7 дней</h2>
+        </div>
+
+        @if (Model.Stats.Upcoming.Count == 0)
+        {
+            <div class="empty-state">Пока пусто.</div>
+        }
+        else
+        {
+            <ul class="admin-feed">
+                @foreach (var booking in Model.Stats.Upcoming)
+                {
+                    <li class="admin-feed__item">
+                        <div class="admin-feed__when">
+                            <span class="admin-feed__day">@booking.StartLocal.ToString("dd.MM")</span>
+                            <span class="admin-feed__time">@booking.StartLocal.ToString("HH:mm")</span>
+                        </div>
+                        <div class="admin-feed__body">
+                            <div class="admin-feed__title">@booking.ServiceName</div>
+                            <div class="admin-muted">@booking.ClientName · @booking.MasterName</div>
+                        </div>
+                        <span class="status-badge @BookingStatuses.CssClass(booking.Status)">@Model.StatusTitle(booking.Status)</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+<div class="admin-grid-2">
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Наполнение сайта</h2>
+        </div>
+        <div class="admin-mini-stats">
+            <div><span>@Model.Stats.ServicesCount</span> услуг</div>
+            <div><span>@Model.Stats.MastersCount</span> мастера</div>
+            <div><span>@Model.Stats.WorksCount</span> работ</div>
+        </div>
+        <div class="admin-actions-row">
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Catalog">Услуги и цены</a>
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Masters">Мастера</a>
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Works">Портфолио</a>
+        </div>
+    </section>
+
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Telegram-боты</h2>
+        </div>
+
+        <div class="admin-kv">
+            <div class="admin-kv__row">
+                <span>Клиентский бот</span>
+                <span class="status-badge @(Model.ClientBotConfigured ? "is-confirmed" : "is-cancelled")">
+                    @(Model.ClientBotConfigured ? "настроен" : "не задан")
+                </span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.ClientBotUsername))
+            {
+                <div class="admin-kv__row">
+                    <span>Имя</span>
+                    <span>@@@Model.ClientBotUsername</span>
+                </div>
+            }
+            <div class="admin-kv__row">
+                <span>Админский бот</span>
+                <span class="status-badge @(Model.AdminBotConfigured ? "is-confirmed" : "is-cancelled")">
+                    @(Model.AdminBotConfigured ? "настроен" : "не задан")
+                </span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.AdminBotUsername))
+            {
+                <div class="admin-kv__row">
+                    <span>Имя</span>
+                    <span>@@@Model.AdminBotUsername</span>
+                </div>
+            }
+            <div class="admin-kv__row">
+                <span>Уведомления</span>
+                <span class="status-badge @(Model.ReminderEnabled ? "is-confirmed" : "is-pending")">
+                    @(Model.ReminderEnabled ? "включены" : "выключены")
+                </span>
+            </div>
+            <div class="admin-kv__row">
+                <span>Напоминание о визите</span>
+                <span>за @Model.ReminderHours ч.</span>
+            </div>
+        </div>
+
+        @* Предупреждение вместо общего объяснения про токены: оно говорит, чего именно
+           не хватает, и ведёт в настройки. Молчание уведомлений — не то, что можно
+           заметить самому: о нём узнают от клиента, которому не перезвонили. *@
+        @if (Model.TelegramBlockReason is not null)
+        {
+            <div class="alert alert--error is-visible" style="margin-top:14px;">
+                <strong>Уведомления о новых записях не приходят.</strong>
+                Причина: @Model.TelegramBlockReason.
+                Откройте <a asp-page="/Admin/Settings">настройки</a> — там чек-лист того,
+                что осталось задать.
+            </div>
+        }
+        else if (!Model.ClientBotConfigured && !Model.AdminBotConfigured)
+        {
+            <div class="alert alert--info is-visible" style="margin-top:14px;">
+                Токены ботов задаются вне исходного кода: через User Secrets
+                (<code>Telegram:BotToken</code>, <code>Telegram:AdminBotToken</code>)
+                или переменные окружения <code>Telegram__BotToken</code> и
+                <code>Telegram__AdminBotToken</code>.
+            </div>
+        }
+
+        <div class="admin-actions-row">
+            <a class="btn btn--ghost btn--sm" asp-page="/Admin/Settings">Настройки Telegram</a>
+        </div>
+    </section>
+</div>
+
+@if (Model.ClientsDueForVisit > 0)
+{
+    <section class="admin-card">
+        <div class="admin-card__head">
+            <h2 class="admin-card__title">Пора напомнить о себе</h2>
+            <span class="admin-muted">
+                Больше @Model.WinBackWeeks @Money.Weeks(Model.WinBackWeeks) без визита
+            </span>
+        </div>
+        <p class="admin-muted" style="margin-bottom:14px;">
+            @Model.ClientsDueForVisit @Money.Plural(Model.ClientsDueForVisit, "клиент", "клиента", "клиентов")
+            давно не были и ещё не записаны. Написать им можно прямо из раздела «Клиенты».
+        </p>
+        <div class="admin-actions-row">
+            <a class="btn btn--sm" asp-page="/Admin/Clients">Открыть клиентов</a>
+        </div>
+    </section>
+}

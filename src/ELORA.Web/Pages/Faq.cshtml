@@ -1,0 +1,38 @@
+@page
+@model FaqModel
+@{
+    ViewData["Title"] = "Вопросы и ответы";
+    ViewData["Description"] = "Часто задаваемые вопросы о записи, отмене, длительности процедур и подарочных сертификатах в студии ELORA.";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <div class="breadcrumbs">
+            <a asp-page="/Index">Главная</a><span>/</span><span>Вопросы</span>
+        </div>
+        <h1 class="page-hero__title">Часто задаваемые вопросы</h1>
+        <p class="page-hero__sub">Собрали то, о чём спрашивают чаще всего. Если ответа нет — напишите нам.</p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="faq__list" data-accordion="single">
+            @foreach (var item in Model.Faq)
+            {
+                <div class="faq__item">
+                    <button class="faq__q" type="button" aria-expanded="false">
+                        <span>@item.Question</span>
+                        @Icons.ChevronDown(16)
+                    </button>
+                    <div class="faq__a">@item.Answer</div>
+                </div>
+            }
+        </div>
+
+        <div style="margin-top:30px;display:flex;gap:12px;flex-wrap:wrap;">
+            <a class="btn" asp-page="/Contacts">Задать вопрос @Icons.Arrow(15)</a>
+            <a class="btn btn--ghost" asp-page="/Booking">Записаться онлайн</a>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,96 @@
+@page
+@model ServicesModel
+@{
+    ViewData["Title"] = "Услуги";
+    ViewData["Description"] = "Все услуги студии ELORA: маникюр, педикюр, ресницы, брови, волосы и тату с ценами и длительностью.";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <div class="breadcrumbs">
+            <a asp-page="/Index">Главная</a><span>/</span><span>Услуги</span>
+        </div>
+        <h1 class="page-hero__title">Услуги</h1>
+        <p class="page-hero__sub">
+            Шесть направлений и более двадцати процедур. Выберите услугу — мы подберём мастера
+            и покажем свободное время.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="services__grid" data-reveal>
+            @foreach (var category in Model.Categories)
+            {
+                <a class="service-card" href="#@category.Slug">
+                    <span class="service-card__media">
+                        <img src="@category.ImagePath" alt="@category.Name" loading="lazy"
+                             width="560" height="587" />
+                    </span>
+                    <span class="service-card__body">
+                        <span>
+                            <span class="service-card__name">@category.Name</span>
+                            <span class="service-card__price">от @Money.FormatShort(category.PriceFrom) ₽</span>
+                        </span>
+                        <span class="icon-btn">@Icons.Arrow(14)</span>
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+@foreach (var group in Model.Groups)
+{
+    <section class="section section--tight" id="@group.Slug">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-head__text">
+                    <h2 class="section-title">@group.Category.Name</h2>
+                    @if (!string.IsNullOrWhiteSpace(group.Category.Description))
+                    {
+                        <p class="section-sub">@group.Category.Description</p>
+                    }
+                </div>
+                <a class="link-arrow" asp-page="/Booking">Записаться @Icons.Arrow(15)</a>
+            </div>
+
+            <div class="info-grid">
+                @foreach (var service in group.Services)
+                {
+                    <article class="card">
+                        <div class="info-card__title">@service.Name</div>
+                        @if (!string.IsNullOrWhiteSpace(service.Description))
+                        {
+                            <p class="info-card__text">@service.Description</p>
+                        }
+                        <div class="summary-row" style="margin-top:14px;border-bottom:0;padding-bottom:0;">
+                            <span class="summary-row__label">@Money.Duration(service.DurationMinutes)</span>
+                            <span class="summary-row__value">@Money.Format(service.Price)</span>
+                        </div>
+                        <a class="btn btn--ghost btn--sm" style="margin-top:14px;"
+                           asp-page="/Booking" asp-route-serviceId="@service.Id">Записаться</a>
+                    </article>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<section class="section section--tight">
+    <div class="container">
+        <div class="promo" data-reveal>
+            <img class="promo__image" src="/images/promo/promo.jpg" alt="" loading="lazy" aria-hidden="true"
+                 srcset="/images/promo/promo.jpg 1800w, /images/promo/promo-sm.jpg 900w"
+                 sizes="(max-width: 768px) 100vw, 62vw" />
+            <div class="promo__content">
+                <h2 class="promo__title">Не нашли нужную услугу?</h2>
+                <p class="promo__text">Позвоните нам — подберём мастера и удобное время</p>
+                <div class="promo__cta">
+                    <a class="btn" asp-page="/Contacts">Связаться @Icons.Arrow(15)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,127 @@
+@page "/booking/success"
+@model BookingSuccessModel
+@{
+    ViewData["Title"] = "Запись оформлена";
+    ViewData["Description"] = "Запись в студию ELORA создана. Детали визита и ссылка на управление записью.";
+    // Страница-подтверждение после создания записи. В поиске ей нечего делать:
+    // осмысленного содержимого у неё нет, а попадают на неё только после отправки формы.
+    ViewData["Robots"] = "noindex, nofollow";
+}
+
+<section class="section">
+    <div class="container">
+
+        @if (Model.Booking is null)
+        {
+            <div class="success-card">
+                <div class="success-card__icon">@Icons.Chat(27)</div>
+                <h1 class="success-card__title">Запись не найдена</h1>
+                <p class="success-card__sub">
+                    Ссылка недействительна или запись была удалена. Создайте новую запись —
+                    это займёт меньше минуты.
+                </p>
+                <div class="success-actions" style="margin-top:26px;">
+                    <a class="btn btn--block" asp-page="/Booking">Записаться заново @Icons.Arrow(15)</a>
+                    <a class="btn btn--ghost btn--block" asp-page="/Index">На главную</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            var booking = Model.Booking;
+
+            <div class="success-card">
+                <div class="success-card__icon">@Icons.CheckCircle(27)</div>
+                <h1 class="success-card__title">Вы записаны!</h1>
+                <p class="success-card__sub">
+                    @booking.ServiceName · @Money.DateWithWeekday(booking.StartLocal)
+                    в @booking.StartLocal.ToString("HH:mm")
+                </p>
+
+                <div class="success-details">
+                    <div class="summary-row">
+                        <span class="summary-row__label">Статус</span>
+                        <span class="summary-row__value">
+                            <span class="status-badge @BookingStatuses.CssClass(booking.Status)">@Model.StatusTitle</span>
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Услуга</span>
+                        <span class="summary-row__value">@booking.ServiceName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Мастер</span>
+                        <span class="summary-row__value">@booking.MasterName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Дата и время</span>
+                        <span class="summary-row__value">@booking.StartLocal.ToString("dd.MM.yyyy") · @Money.TimeRange(booking.StartLocal, booking.EndLocal)</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Длительность</span>
+                        <span class="summary-row__value">@Money.Duration(booking.DurationMinutes)</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Имя</span>
+                        <span class="summary-row__value">@booking.ClientName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Телефон</span>
+                        <span class="summary-row__value">@booking.ClientPhone</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-row__label">Стоимость</span>
+                        <span class="summary-row__value">@Money.Format(booking.Price)</span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.TelegramLink))
+                {
+                    <div class="alert alert--info is-visible" style="text-align:left;">
+                        Подключите Telegram-бота — он пришлёт подтверждение, напомнит за сутки
+                        и позволит перенести запись одной кнопкой. В открывшемся чате нажмите
+                        <strong>Start</strong> (или «Запустить») — без этого шага бот не сможет
+                        вам написать.
+                    </div>
+                }
+                else if (Model.TelegramConnected)
+                {
+                    <div class="alert alert--success is-visible" style="text-align:left;">
+                        Telegram подключён — напомним о визите за сутки. Список записей: команда <strong>/my</strong> в чате с ботом.
+                    </div>
+                }
+
+                <div class="success-actions">
+                    @if (!string.IsNullOrWhiteSpace(Model.TelegramLink))
+                    {
+                        <a class="btn btn--block" href="@Model.TelegramLink" target="_blank" rel="noopener">
+                            @Icons.Telegram(15) Открыть Telegram-бота
+                        </a>
+                    }
+                    <a class="btn btn--ghost btn--block" href="@Model.ManageUrl">
+                        Управлять записью @Icons.Arrow(15)
+                    </a>
+                    <a class="btn btn--ghost btn--block" asp-page="/Index">На главную</a>
+                </div>
+
+                @* Запись уже положена в cookie сервером (MyBookings.Remember в /api/bookings),
+                   поэтому ссылку можно не сохранять вручную — но пусть будет, она работает
+                   и на другом устройстве. *@
+                <p class="success-card__sub" style="font-size:12.5px; margin-top:18px;">
+                    Запись запомнена в этом браузере: вернётесь на сайт — она будет на странице
+                    <a href="/my">«Мои записи»</a>. Регистрация для этого не нужна.
+                </p>
+
+                <p class="manage-link">
+                    Ссылка для управления записью (работает и на другом устройстве):<br />
+                    <strong>@Model.AbsoluteManageUrl</strong>
+                </p>
+
+                <p class="success-card__sub" style="font-size:12.5px;">
+                    Если планы изменятся — позвоните нам: @Model.Phone
+                </p>
+            </div>
+        }
+
+    </div>
+</section>

@@ -1,0 +1,150 @@
+@page
+@model ELORA.Web.Pages.Admin.ReviewsModel
+@{
+    ViewData["Title"] = "Отзывы";
+    ViewData["Subtitle"] = $"{Model.Items.Count} отзывов";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Отзывы клиентов</h2>
+        <span class="admin-muted">Показываются в блоке «Отзывы» на главной</span>
+    </div>
+
+    @* Выдуманные отзывы — недостоверная реклама (ч. 3 ст. 5 ФЗ «О рекламе»): штраф
+       на ИП до 20 000 ₽. Поэтому говорим об этом в админке прямо, а не в документации. *@
+    @if (Model.DemoLeft > 0)
+    {
+        <div class="alert alert--error is-visible" style="margin-bottom:14px;">
+            <strong>Это демонстрационные отзывы: @Model.DemoLeft шт.</strong>
+            Они попали в базу при первом запуске сайта, клиентов за ними нет. Публиковать
+            выдуманные отзывы нельзя — это недостоверная реклама, штраф для ИП до 20 000 ₽.
+            Замените их настоящими (согласие клиента на публикацию имени и текста лучше взять
+            письменно) или удалите — блок «Отзывы» на главной просто исчезнет.
+            <br /><br />
+            <strong>Про аватары.</strong> Снимки клиентов тоже взяты с фотостока Pexels:
+            его лицензия запрещает выдавать людей с фотографии за ваших клиентов. Очистите
+            поле «Аватар» — на его месте появятся инициалы, вид карточки не пострадает.
+            Аватар настоящего клиента — только с его согласия.
+        </div>
+    }
+
+    <div class="admin-accordion">
+        @foreach (var review in Model.Items)
+        {
+            <details class="admin-details">
+                <summary class="admin-details__summary">
+                    @if (!string.IsNullOrWhiteSpace(review.AvatarPath))
+                    {
+                        <img class="admin-avatar" src="@review.AvatarPath" alt="" loading="lazy" />
+                    }
+                    <span class="is-strong">@review.ClientName</span>
+                    <span class="stars">
+                        @for (var i = 0; i < review.Rating; i++)
+                        {
+                            @Icons.Star(11)
+                        }
+                    </span>
+                    <span class="admin-muted admin-truncate">@review.Text</span>
+                    <span class="status-badge @(review.IsActive ? "is-confirmed" : "is-cancelled")">
+                        @(review.IsActive ? "на сайте" : "скрыт")
+                    </span>
+                </summary>
+
+                <form method="post" asp-page-handler="Save" class="admin-form">
+                    <input type="hidden" name="id" value="@review.Id" />
+
+                    <div class="admin-form__grid">
+                        <div class="field">
+                            <label class="field__label">Имя клиента</label>
+                            <input class="field__input" name="clientName" value="@review.ClientName" required />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Оценка</label>
+                            <select class="field__select" name="rating">
+                                @for (var stars = 5; stars >= 1; stars--)
+                                {
+                                    <option value="@stars" selected="@(review.Rating == stars)">@stars</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Аватар (путь или URL)</label>
+                            <input class="field__input" name="avatarPath" value="@review.AvatarPath" />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Порядок</label>
+                            <input class="field__input" name="sortOrder" type="number" value="@review.SortOrder" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Текст отзыва</label>
+                        <textarea class="field__textarea" name="text" required>@review.Text</textarea>
+                    </div>
+
+                    <label class="checkbox" style="margin-bottom:14px;">
+                        <input type="checkbox" name="isActive" value="true" checked="@review.IsActive" />
+                        <span>Показывать на сайте</span>
+                    </label>
+
+                    <div class="admin-actions-row">
+                        <button type="submit" class="btn btn--sm">Сохранить</button>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="Delete" data-confirm="Удалить отзыв @review.ClientName?">
+                    <input type="hidden" name="id" value="@review.Id" />
+                    <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                </form>
+            </details>
+        }
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Добавить отзыв</h2>
+    </div>
+
+    <form method="post" asp-page-handler="Save" class="admin-form">
+        <input type="hidden" name="id" value="0" />
+
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Имя клиента</label>
+                <input class="field__input" name="clientName" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Оценка</label>
+                <select class="field__select" name="rating">
+                    <option value="5" selected>5</option>
+                    <option value="4">4</option>
+                    <option value="3">3</option>
+                    <option value="2">2</option>
+                    <option value="1">1</option>
+                </select>
+            </div>
+            <div class="field">
+                <label class="field__label">Аватар (путь или URL)</label>
+                <input class="field__input" name="avatarPath" placeholder="/images/reviews/r5.jpg" />
+            </div>
+            <div class="field">
+                <label class="field__label">Порядок</label>
+                <input class="field__input" name="sortOrder" type="number" value="0" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label">Текст отзыва</label>
+            <textarea class="field__textarea" name="text" required></textarea>
+        </div>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="isActive" value="true" checked />
+            <span>Показывать на сайте</span>
+        </label>
+
+        <button type="submit" class="btn">Добавить отзыв</button>
+    </form>
+</section>

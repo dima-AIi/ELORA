@@ -1,0 +1,179 @@
+@page
+@model ELORA.Web.Pages.Admin.MastersModel
+@{
+    ViewData["Title"] = "Мастера";
+    ViewData["Subtitle"] = $"{Model.Items.Count} мастеров · привязка к услугам влияет на онлайн-запись";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Команда</h2>
+    </div>
+
+    @* Не ошибка, а правило лицензии: Pexels разрешает коммерческое использование, но
+       прямо запрещает «создавать впечатление, что люди на изображении поддерживают ваш
+       продукт». Стоковое лицо в карточке мастера — ровно этот случай. *@
+    <div class="alert alert--info is-visible" style="margin-bottom:14px;">
+        <strong>О фотографиях мастеров.</strong> Сейчас здесь стоят снимки с фотостока
+        Pexels. Его лицензия разрешает коммерческое использование без указания автора,
+        но <em>запрещает выдавать людей с фотографии за сотрудников</em> — это прямо
+        записано в правилах Pexels («don't imply endorsement»). Пока нет фото настоящего
+        мастера, лучше оставить поле пустым: карточка покажет инициалы и останется целой.
+        Фото сотрудника публикуйте только с его письменного согласия.
+    </div>
+
+    <div class="admin-accordion">
+        @foreach (var master in Model.Items)
+        {
+            <details class="admin-details">
+                <summary class="admin-details__summary">
+                    @if (!string.IsNullOrWhiteSpace(master.PhotoPath))
+                    {
+                        <img class="admin-avatar" src="@master.PhotoPath" alt="" loading="lazy" />
+                    }
+                    <span class="is-strong">@master.Name</span>
+                    <span class="admin-muted">@master.Specialization</span>
+                    <span class="admin-muted">@master.ServiceIds.Count услуг</span>
+                    <span class="status-badge @(master.IsActive ? "is-confirmed" : "is-cancelled")">
+                        @(master.IsActive ? "работает" : "скрыт")
+                    </span>
+                </summary>
+
+                <form method="post" asp-page-handler="Save" class="admin-form">
+                    <input type="hidden" name="id" value="@master.Id" />
+
+                    <div class="admin-form__grid">
+                        <div class="field">
+                            <label class="field__label">Имя</label>
+                            <input class="field__input" name="name" value="@master.Name" required />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Специализация</label>
+                            <input class="field__input" name="specialization" value="@master.Specialization" />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Телефон</label>
+                            <input class="field__input" name="phone" value="@master.Phone" />
+                        </div>
+                        <div class="field">
+                            <label class="field__label">Порядок</label>
+                            <input class="field__input" name="sortOrder" type="number" value="@master.SortOrder" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Фото (путь или URL)</label>
+                        <input class="field__input" name="photoPath" value="@master.PhotoPath"
+                               placeholder="/images/masters/anna.jpg" />
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Описание</label>
+                        <textarea class="field__textarea" name="description">@master.Description</textarea>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Какие услуги оказывает</label>
+                        <div class="admin-check-grid">
+                            @foreach (var service in Model.Services)
+                            {
+                                var isLinked = master.ServiceIds.Contains(service.Id);
+                                <label class="checkbox">
+                                    <input type="checkbox" name="serviceIds" value="@service.Id" checked="@isLinked" />
+                                    <span>@service.Name <span class="admin-muted">(@service.CategoryName)</span></span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                    <label class="checkbox" style="margin-bottom:14px;">
+                        <input type="checkbox" name="isActive" value="true" checked="@master.IsActive" />
+                        <span>Мастер работает</span>
+                    </label>
+
+                    <div class="admin-actions-row">
+                        <button type="submit" class="btn btn--sm">Сохранить</button>
+                    </div>
+                </form>
+
+                @* Удаление запрещено, если у мастера есть записи: Bookings.MasterId жёсткий,
+                   и история клиентов важнее. Кнопку в этом случае не показываем, а сервер
+                   повторяет ту же проверку — POST можно собрать руками. *@
+                @if (Model.BookingCounts.GetValueOrDefault(master.Id) == 0)
+                {
+                    <form method="post" asp-page-handler="Delete"
+                          data-confirm="Удалить мастера «@master.Name» насовсем? Вернуть его будет нельзя.">
+                        <input type="hidden" name="id" value="@master.Id" />
+                        <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                    </form>
+                }
+                else
+                {
+                    <p class="admin-muted" style="margin:0;">
+                        У мастера @Model.BookingCounts.GetValueOrDefault(master.Id) записей — удалить нельзя,
+                        только снять галочку «Мастер работает».
+                    </p>
+                }
+            </details>
+        }
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Добавить мастера</h2>
+    </div>
+
+    <form method="post" asp-page-handler="Save" class="admin-form">
+        <input type="hidden" name="id" value="0" />
+
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Имя</label>
+                <input class="field__input" name="name" required />
+            </div>
+            <div class="field">
+                <label class="field__label">Специализация</label>
+                <input class="field__input" name="specialization" placeholder="Маникюр, педикюр" />
+            </div>
+            <div class="field">
+                <label class="field__label">Телефон</label>
+                <input class="field__input" name="phone" />
+            </div>
+            <div class="field">
+                <label class="field__label">Порядок</label>
+                <input class="field__input" name="sortOrder" type="number" value="0" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field__label">Фото (путь или URL)</label>
+            <input class="field__input" name="photoPath" placeholder="/images/masters/new.jpg" />
+        </div>
+
+        <div class="field">
+            <label class="field__label">Описание</label>
+            <textarea class="field__textarea" name="description"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="field__label">Какие услуги оказывает</label>
+            <div class="admin-check-grid">
+                @foreach (var service in Model.Services)
+                {
+                    <label class="checkbox">
+                        <input type="checkbox" name="serviceIds" value="@service.Id" />
+                        <span>@service.Name <span class="admin-muted">(@service.CategoryName)</span></span>
+                    </label>
+                }
+            </div>
+        </div>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="isActive" value="true" checked />
+            <span>Мастер работает</span>
+        </label>
+
+        <button type="submit" class="btn">Добавить мастера</button>
+    </form>
+</section>

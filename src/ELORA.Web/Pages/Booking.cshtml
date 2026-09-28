@@ -1,0 +1,271 @@
+@page
+@model BookingModel
+@{
+    ViewData["Title"] = "Онлайн-запись";
+    ViewData["Description"] = "Запишитесь в студию ELORA онлайн: выберите услугу, мастера и удобное время. Подтверждение придёт в Telegram.";
+}
+
+<section class="page-hero">
+    <div class="container">
+        <div class="breadcrumbs">
+            <a asp-page="/Index">Главная</a><span>/</span><span>Запись</span>
+        </div>
+        <h1 class="page-hero__title">Онлайн-запись</h1>
+        <p class="page-hero__sub">
+            Восемь коротких шагов — и время закреплено за вами. Свободные слоты считаются
+            на сервере в реальном времени, поэтому пересечений не бывает.
+        </p>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        @Html.AntiForgeryToken()
+
+        <div class="booking-steps" id="bookingSteps" role="list">
+            <div class="booking-step is-active" data-step-chip="1" role="listitem"><span class="booking-step__num">1</span>Услуга</div>
+            <div class="booking-step" data-step-chip="2" role="listitem"><span class="booking-step__num">2</span>Мастер</div>
+            <div class="booking-step" data-step-chip="3" role="listitem"><span class="booking-step__num">3</span>Дата</div>
+            <div class="booking-step" data-step-chip="4" role="listitem"><span class="booking-step__num">4</span>Время</div>
+            <div class="booking-step" data-step-chip="5" role="listitem"><span class="booking-step__num">5</span>Имя</div>
+            <div class="booking-step" data-step-chip="6" role="listitem"><span class="booking-step__num">6</span>Телефон</div>
+            <div class="booking-step" data-step-chip="7" role="listitem"><span class="booking-step__num">7</span>Telegram</div>
+            <div class="booking-step" data-step-chip="8" role="listitem"><span class="booking-step__num">8</span>Готово</div>
+        </div>
+
+        <div class="booking-layout">
+            <div class="booking-main">
+                <div class="alert alert--error" id="bookingError" role="alert"></div>
+
+                <!-- Шаг 1. Услуга -->
+                <section class="booking-panel is-active" data-step="1">
+                    <h2 class="booking-panel__title">Выберите услугу</h2>
+                    <p class="booking-panel__hint">Более двадцати процедур в шести направлениях.</p>
+
+                    <div class="field" style="max-width:340px;">
+                        <label class="field__label" for="categoryFilter">Направление</label>
+                        <select class="field__select" id="categoryFilter">
+                            <option value="">Все направления</option>
+                            @foreach (var category in Model.Categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="choice-grid" id="serviceChoices">
+                        @foreach (var service in Model.Services)
+                        {
+                            <button type="button" class="choice"
+                                    data-service-id="@service.Id"
+                                    data-category-id="@service.CategoryId">
+                                <span class="choice__name">@service.Name</span>
+                                <span class="choice__meta">@service.CategoryName · @Money.Duration(service.DurationMinutes)</span>
+                                <span class="choice__price">@Money.Format(service.Price)</span>
+                            </button>
+                        }
+                    </div>
+                    <div class="empty-state" id="serviceEmpty" hidden>В этом направлении пока нет услуг.</div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn" data-next="2" id="toStep2" disabled>
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 2. Мастер -->
+                <section class="booking-panel" data-step="2">
+                    <h2 class="booking-panel__title">Выберите мастера</h2>
+                    <p class="booking-panel__hint">Показаны только те мастера, кто выполняет выбранную услугу.</p>
+
+                    <div class="choice-grid choice-grid--2" id="masterChoices"></div>
+                    <div class="empty-state" id="masterEmpty" hidden>Нет мастеров для этой услуги.</div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="1">Назад</button>
+                        <button type="button" class="btn" data-next="3" id="toStep3" disabled>
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 3. Дата -->
+                <section class="booking-panel" data-step="3">
+                    <h2 class="booking-panel__title">Выберите дату</h2>
+                    <p class="booking-panel__hint">Доступны только дни, когда мастер работает и есть свободное время.</p>
+
+                    <div class="date-strip" id="dateStrip"></div>
+                    <div class="empty-state" id="dateEmpty" hidden>На ближайшие два месяца свободных дней нет. Позвоните нам: @Model.Phone</div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="2">Назад</button>
+                        <button type="button" class="btn" data-next="4" id="toStep4" disabled>
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 4. Время -->
+                <section class="booking-panel" data-step="4">
+                    <h2 class="booking-panel__title">Выберите время</h2>
+                    <p class="booking-panel__hint" id="slotsHint">Свободное время на выбранный день.</p>
+
+                    <div class="slots-grid" id="slotsGrid"></div>
+                    <div class="empty-state" id="slotsEmpty" hidden>На этот день всё занято. Выберите другую дату.</div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="3">Назад</button>
+                        <button type="button" class="btn" data-next="5" id="toStep5" disabled>
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 5. Имя -->
+                <section class="booking-panel" data-step="5">
+                    <h2 class="booking-panel__title">Как вас зовут?</h2>
+                    <p class="booking-panel__hint">Мастер будет знать, кого ждать.</p>
+
+                    <div class="field" id="nameField" style="max-width:440px;">
+                        <label class="field__label" for="clientName">Имя</label>
+                        <input class="field__input" id="clientName" type="text" autocomplete="given-name"
+                               placeholder="Например, Анна" maxlength="80" />
+                        <span class="field__error">Укажите имя — минимум 2 символа</span>
+                    </div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="4">Назад</button>
+                        <button type="button" class="btn" data-next="6" id="toStep6">
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 6. Телефон -->
+                <section class="booking-panel" data-step="6">
+                    <h2 class="booking-panel__title">Телефон для связи</h2>
+                    <p class="booking-panel__hint">Позвоним только если что-то изменится в записи.</p>
+
+                    <div class="field" id="phoneField" style="max-width:440px;">
+                        <label class="field__label" for="clientPhone">Телефон</label>
+                        <input class="field__input" id="clientPhone" type="tel" inputmode="tel"
+                               autocomplete="tel" placeholder="+7 (___) ___-__-__" maxlength="18" />
+                        <span class="field__error">Введите номер полностью: +7 (___) ___-__-__</span>
+                    </div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="5">Назад</button>
+                        <button type="button" class="btn" data-next="7" id="toStep7">
+                            <span class="btn__label">Далее</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 7. Telegram -->
+                <section class="booking-panel" data-step="7">
+                    <h2 class="booking-panel__title">Telegram — по желанию</h2>
+                    <p class="booking-panel__hint">
+                        Подключите бота: он пришлёт подтверждение, напомнит за сутки и позволит
+                        перенести или отменить запись одной кнопкой.
+                    </p>
+
+                    <div class="field" style="max-width:440px;">
+                        <label class="field__label" for="clientTelegram">Ник в Telegram</label>
+                        <input class="field__input" id="clientTelegram" type="text"
+                               placeholder="@@elora_studio" maxlength="64" autocomplete="off"
+                               spellcheck="false" />
+                        <span class="field__hint" id="telegramHint">
+                            Можно пропустить — запись всё равно сохранится.
+                        </span>
+                    </div>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="6">Назад</button>
+                        <button type="button" class="btn" data-next="8" id="toStep8">
+                            <span class="btn__label">К подтверждению</span>@Icons.Arrow(15)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Шаг 8. Подтверждение -->
+                <section class="booking-panel" data-step="8">
+                    <h2 class="booking-panel__title">Проверьте запись</h2>
+                    <p class="booking-panel__hint">Если всё верно — подтвердите, время будет закреплено за вами.</p>
+
+                    <div class="field">
+                        <label class="field__label" for="clientComment">Комментарий мастеру (необязательно)</label>
+                        <textarea class="field__textarea" id="clientComment" maxlength="500"
+                                  placeholder="Пожелания по дизайну, длина, аллергии — всё, что важно"></textarea>
+                    </div>
+
+                    @* Галочка намеренно пустая: согласие на обработку персональных данных
+                       должно быть активным действием человека (ч. 1 ст. 9 152-ФЗ), а не тем,
+                       что уже отмечено за него. Форма это проверяет и без галочки не отправит. *@
+                    <label class="checkbox" style="margin-top:6px;">
+                        <input type="checkbox" id="consent" />
+                        <span>
+                            Я согласен с <a href="/rules" target="_blank" rel="noopener">правилами записи</a>
+                            и <a href="/privacy" target="_blank" rel="noopener">обработкой персональных данных</a>
+                        </span>
+                    </label>
+
+                    <div class="booking-nav">
+                        <button type="button" class="btn btn--ghost" data-back="7">Назад</button>
+                        <button type="button" class="btn" id="submitBooking">
+                            <span class="spinner"></span>
+                            <span class="btn__label">Подтвердить запись</span>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Сводка -->
+            <aside class="booking-summary" aria-label="Ваша запись">
+                <h2 class="booking-summary__title">Ваша запись</h2>
+                <div class="summary-row">
+                    <span class="summary-row__label">Услуга</span>
+                    <span class="summary-row__value" id="sumService">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-row__label">Мастер</span>
+                    <span class="summary-row__value" id="sumMaster">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-row__label">Дата</span>
+                    <span class="summary-row__value" id="sumDate">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-row__label">Время</span>
+                    <span class="summary-row__value" id="sumTime">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-row__label">Длительность</span>
+                    <span class="summary-row__value" id="sumDuration">—</span>
+                </div>
+                <div class="booking-summary__total">
+                    <span>Итого</span>
+                    <span id="sumPrice">—</span>
+                </div>
+
+                <div class="alert alert--info" style="margin:16px 0 0;">
+                    Свободное время проверяется на сервере в момент подтверждения —
+                    двойная запись на один слот невозможна.
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+
+<script id="catalogData" type="application/json">@Html.Raw(Model.CatalogJson())</script>
+<script>
+    window.ELORA_BOOKING = {
+        preselectedServiceId: @Model.PreselectedServiceId,
+        telegramBot: "@Model.TelegramBotUsername",
+        phone: "@Model.Phone"
+    };
+</script>
+
+@section Scripts {
+    <script src="~/js/booking.js" asp-append-version="true"></script>
+}

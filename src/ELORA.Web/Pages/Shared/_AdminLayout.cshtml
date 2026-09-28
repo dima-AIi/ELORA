@@ -1,0 +1,109 @@
+@{
+    var current = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+
+    string Active(string path)
+    {
+        if (current.EndsWith(path, StringComparison.OrdinalIgnoreCase)) return "admin-nav__link is-active";
+
+        // Раздел «Клиенты» — это две страницы: список (/Admin/Clients) и карточка (/Admin/Client).
+        // Без этой оговорки в карточке не подсвечивался бы ни один пункт меню.
+        if (path == "/admin/clients" && current.EndsWith("/admin/client", StringComparison.OrdinalIgnoreCase))
+            return "admin-nav__link is-active";
+
+        // То же для «Записей»: список (/Admin/Bookings) и карточка записи (/Admin/Booking).
+        if (path == "/admin/bookings" && current.EndsWith("/admin/booking", StringComparison.OrdinalIgnoreCase))
+            return "admin-nav__link is-active";
+
+        return "admin-nav__link";
+    }
+
+    var navItems = new (string Url, string Title, string Icon)[]
+    {
+        ("/admin", "Дашборд", "grid"),
+        ("/admin/bookings", "Записи", "calendar"),
+        ("/admin/clients", "Клиенты", "users"),
+        ("/admin/catalog", "Услуги и цены", "scissors"),
+        ("/admin/masters", "Мастера", "user"),
+        ("/admin/schedule", "График работы", "clock"),
+        ("/admin/works", "Портфолио", "image"),
+        ("/admin/reviews", "Отзывы", "star"),
+        ("/admin/faq", "Вопросы", "chat"),
+        ("/admin/settings", "Настройки", "shield")
+    };
+}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    @* viewport-fit=cover нужен для Mini App: без него iPhone не отдаёт отступы под
+       «остров» и домашнюю полосу, и в полноэкранном режиме верх панели уезжает под статус-бар. *@
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>@(ViewData["Title"] is null ? "Админ-панель" : ViewData["Title"] + " — ELORA Admin")</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Панель открывается и в браузере, и как Mini App из админского бота. Этот скрипт
+       разворачивает её на весь экран внутри Telegram — в браузере он ничего не делает. *@
+    <script src="~/js/telegram-app.js" asp-append-version="true"></script>
+</head>
+<body class="admin-body">
+<div class="admin">
+
+    <aside class="admin-side">
+        <a class="admin-side__logo" asp-page="/Admin/Index">Elora</a>
+        <div class="admin-side__label">Админ-панель</div>
+
+        <nav class="admin-nav">
+            @foreach (var item in navItems)
+            {
+                <a class="@Active(item.Url)" href="@item.Url">
+                    <span class="admin-nav__icon">@AdminIcons.Render(item.Icon, 15)</span>
+                    <span>@item.Title</span>
+                </a>
+            }
+        </nav>
+
+        <div class="admin-side__foot">
+            <a class="admin-nav__link" asp-page="/Index" target="_blank">Открыть сайт</a>
+            <form method="post" asp-page="/Admin/Logout">
+                <button type="submit" class="admin-nav__link admin-nav__link--button">Выйти</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-top">
+            <div>
+                <h1 class="admin-top__title">@(ViewData["Title"] ?? "Дашборд")</h1>
+                @if (ViewData["Subtitle"] is not null)
+                {
+                    <p class="admin-top__sub">@ViewData["Subtitle"]</p>
+                }
+            </div>
+            <div class="admin-top__right">
+                <span class="admin-user">@(User.Identity?.Name ?? "admin")</span>
+            </div>
+        </header>
+
+        @if (TempData["Flash"] is string flash)
+        {
+            <div class="alert alert--success is-visible">@flash</div>
+        }
+        @if (TempData["FlashWarning"] is string flashWarning)
+        {
+            <div class="alert alert--info is-visible">@flashWarning</div>
+        }
+        @if (TempData["FlashError"] is string flashError)
+        {
+            <div class="alert alert--error is-visible">@flashError</div>
+        }
+
+        @RenderBody()
+    </div>
+</div>
+
+<script src="~/js/admin.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

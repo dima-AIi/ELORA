@@ -1,0 +1,248 @@
+﻿@inject SettingsRepository Settings
+@inject IConfiguration Configuration
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "/Index";
+    string Nav(string path) => currentPage.Equals(path, StringComparison.OrdinalIgnoreCase) ? "nav__link is-active" : "nav__link";
+
+    // Настройки сайта лежат в базе. Если база недоступна, исключение здесь погасило бы
+    // отрисовку любой страницы — в том числе страницы ошибки, которую как раз и показывают,
+    // когда что-то сломалось. Поэтому чтение настроек не имеет права падать: не прочитали —
+    // берём значение по умолчанию, страница всё равно откроется.
+    string Setting(string key, string fallback)
+    {
+        try { return Settings.Get(key, fallback); }
+        catch (Exception) { return fallback; }
+    }
+
+    var phone = Setting("Site.Phone", "+7 (999) 123-45-67");
+    var address = Setting("Site.Address", "Москва, ул. Примерная, 12");
+    var workHours = Setting("Site.WorkHours", "Пн–Сб 09:00 – 19:00, Вс — выходной");
+
+    // Ссылки на соцсети берутся из настроек, а не зашиты в разметку: раньше в подвале
+    // всегда стояли https://vk.com и https://instagram.com — пустышки, которые вели
+    // на главные страницы чужих сервисов. Пустая настройка = иконки нет.
+    var vkLink = Setting("Site.Vk", "");
+    var instagramLink = Setting("Site.Instagram", "");
+    var telegramLink = Setting("Site.Telegram", "");
+
+    // Владелец может не заполнить «Telegram (ссылка)» — и тогда на сайте не остаётся ни одной
+    // дороги в Telegram, хотя бот уже настроен. Имя бота подтягивает getMe, так что ссылку
+    // можно собрать самим. Заполненная вручную настройка всегда главнее.
+    if (string.IsNullOrWhiteSpace(telegramLink))
+    {
+        var botUsername = Setting("Telegram.BotUsername", "").Trim().TrimStart('@');
+        if (!string.IsNullOrWhiteSpace(botUsername))
+            telegramLink = "https://t.me/" + botUsername;
+    }
+
+    // Абсолютный адрес страницы для canonical и Open Graph. Query не берём: страница
+    // с параметрами (?handler=Download, ?code=404) — тот же документ, а не отдельная страница.
+    var siteUrl = PublicUrl.Resolve(ViewContext.HttpContext, Configuration);
+    var currentPath = ViewContext.HttpContext.Request.Path.Value ?? "/";
+    if (currentPath.Length > 1) currentPath = currentPath.TrimEnd('/');
+    var canonicalUrl = siteUrl + currentPath;
+
+    var pageTitle = ViewData["Title"] is null
+        ? "ELORA — студия красоты и онлайн-запись"
+        : ViewData["Title"] + " — ELORA";
+
+    var pageDescription = (string?)ViewData["Description"]
+        ?? "ELORA — студия красоты: маникюр, педикюр, ресницы, брови, волосы и тату. Онлайн-запись к мастерам без звонков.";
+
+    // Страницы с чужими данными (записи по токену, панель, ошибка) закрываем от поиска.
+    var robots = (string?)ViewData["Robots"] ?? "index, follow";
+
+    // В карточке ссылки — в мессенджере, в соцсети, в выдаче — сразу видно, что проект
+    // учебный. Обычное описание оставляем без этой приписки: оно и так длинное, а
+    // пометка нужна там, где ссылку показывают крупно и не читают страницу.
+    var ogDescription = pageDescription + " Учебный проект: студия, мастера и цены вымышленные.";
+
+    var navItems = new List<(string Url, string Title)>
+    {
+        ("/services", "Услуги"),
+        ("/works", "Наши работы"),
+        ("/price", "Прайс"),
+        ("/about", "О нас"),
+        ("/contacts", "Контакты")
+    };
+
+    // «Мои записи» показываем только тому, чей браузер уже что-то помнит: новому посетителю
+    // пункт про несуществующие записи только мешает. Память ведёт сервер по cookie — скриптам
+    // она недоступна (HttpOnly), поэтому решаем здесь, при отрисовке страницы.
+    var rememberedBookings = MyBookings.Read(ViewContext.HttpContext.Request).Count;
+    if (rememberedBookings > 0)
+        navItems.Add(("/my", "Мои записи"));
+}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F7EFE9" />
+    <title>@pageTitle</title>
+    <meta name="description" content="@pageDescription" />
+    <meta name="robots" content="@robots" />
+    @* canonical обязателен там, где одна страница открывается по нескольким адресам:
+       /price и /price?handler=Download, адрес с косой чертой на конце и без неё.
+       Без него поисковик считает это разными страницами и делит между ними вес. *@
+    <link rel="canonical" href="@canonicalUrl" />
+
+    @* Карточка ссылки. Адрес картинки — абсолютный: относительный чужие сервисы
+       не откроют. 1200x630 — пропорция, которую понимают Telegram, VK и Twitter. *@
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ELORA" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="@pageTitle" />
+    <meta property="og:description" content="@ogDescription" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta property="og:image" content="@siteUrl/images/og-cover.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ELORA — студия красоты, учебный проект" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@pageTitle" />
+    <meta name="twitter:description" content="@ogDescription" />
+    <meta name="twitter:image" content="@siteUrl/images/og-cover.jpg" />
+
+    @* Файл описания приложения. Нужен, чтобы сайт можно было добавить на домашний
+       экран телефона: тогда он открывается без адресной строки, как приложение. *@
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/images/icon-192.png" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    @* Шрифты отдаём со своего сервера. Раньше здесь стояли preconnect и ссылка на
+       fonts.googleapis.com: при каждом открытии страницы браузер посетителя обращался
+       к чужому серверу за границей, а сама вёрстка зависела от доступности Google.
+       Файлы — в wwwroot/fonts, объявления — в css/fonts.css (см. tools/fetch_fonts.py). *@
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<div class="shell">
+
+    <header class="header">
+        <div class="container header__inner">
+            <a class="logo" asp-page="/Index">Elora</a>
+
+            <nav class="nav" aria-label="Основная навигация">
+                @foreach (var item in navItems)
+                {
+                    <a class="@Nav(item.Url)" href="@item.Url">@item.Title</a>
+                }
+            </nav>
+
+            <div class="header__cta">
+                <a class="btn btn--sm" asp-page="/Booking">Записаться</a>
+                <button class="burger" type="button" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobileMenu">
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        @RenderBody()
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__grid">
+                <div class="footer__brand">
+                    <a class="logo" asp-page="/Index">Elora</a>
+                    <p class="footer__tagline">Твоя красота — наша забота</p>
+                    <p class="footer__copy">© @DateTime.Now.Year ELORA. Все права защищены.</p>
+                </div>
+
+                <nav class="footer__nav" aria-label="Навигация в подвале">
+                    @foreach (var item in navItems)
+                    {
+                        <a href="@item.Url">@item.Title</a>
+                    }
+                    <a asp-page="/Faq">Вопросы и ответы</a>
+                    <a asp-page="/Booking">Записаться</a>
+                    @* В подвале ссылка есть всегда: если человек почистил cookie, ему нужно
+                       место, откуда узнать про эту страницу. *@
+                    <a asp-page="/My">Мои записи</a>
+                    @* Текстовая ссылка, а не только иконка: иконку в подвале легко не заметить,
+                       а это единственный путь из сайта в бота. *@
+                    @if (!string.IsNullOrWhiteSpace(telegramLink))
+                    {
+                        <a href="@telegramLink" target="_blank" rel="noopener">Telegram-бот</a>
+                    }
+                    <a href="/rules">Правила записи</a>
+                    <a href="/privacy">Обработка данных</a>
+                </nav>
+
+                <div class="footer__contacts">
+                    <div class="socials">
+                        @if (!string.IsNullOrWhiteSpace(vkLink))
+                        {
+                            <a href="@vkLink" target="_blank" rel="noopener" aria-label="ВКонтакте">@Icons.Vk(15)</a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(instagramLink))
+                        {
+                            <a href="@instagramLink" target="_blank" rel="noopener" aria-label="Instagram">@Icons.Instagram(15)</a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(telegramLink))
+                        {
+                            <a href="@telegramLink" target="_blank" rel="noopener" aria-label="Telegram">@Icons.Telegram(15)</a>
+                        }
+                    </div>
+
+                    @* Обязательная пометка: за публикацию ссылки на Instagram без неё
+                       грозит штраф по ч. 2 ст. 13.15 КоАП, и замена предупреждением
+                       для этой статьи прямо исключена. Пометка стоит рядом со ссылкой. *@
+                    @if (!string.IsNullOrWhiteSpace(instagramLink))
+                    {
+                        <p class="footer__meta-note">
+                            Instagram принадлежит компании Meta Platforms Inc., деятельность которой
+                            признана экстремистской и запрещена на территории Российской Федерации.
+                        </p>
+                    }
+
+                    <div class="footer__contact-row">@Icons.Phone(14)<a href="tel:@phone.Replace(" ", "").Replace("(", "").Replace(")", "").Replace("-", "")">@phone</a></div>
+                    <div class="footer__contact-row">@Icons.MapPin(14)<span>@address</span></div>
+                    <p class="footer__offer">Сайт не является публичной офертой.</p>
+                </div>
+            </div>
+
+            @* Пометка о том, что проект учебный. Стоит в самом низу подвала и набрана
+               тише всего остального: она нужна, чтобы никто не принял вымышленную студию
+               за настоящую, а не для того, чтобы бросаться в глаза. Убрать её нельзя —
+               без неё цены и отзывы выглядят как обещание реальных услуг. *@
+            <p class="footer__demo">
+                ELORA — учебный проект и портфолио. Студия, мастера, цены, отзывы и контакты на сайте
+                вымышленные: услуги не оказываются, а отправленная заявка ни к какой реальной студии не попадает.
+            </p>
+        </div>
+    </footer>
+</div>
+
+<div class="mobile-menu" id="mobileMenu" aria-hidden="true">
+    <div class="mobile-menu__head">
+        <a class="logo" asp-page="/Index">Elora</a>
+        <button class="icon-btn" type="button" id="menuClose" aria-label="Закрыть меню">@Icons.Close(16)</button>
+    </div>
+
+    @foreach (var item in navItems)
+    {
+        <a class="mobile-menu__link" href="@item.Url">@item.Title</a>
+    }
+    <a class="mobile-menu__link" asp-page="/Faq">Вопросы</a>
+    <a class="mobile-menu__link" asp-page="/My">Мои записи</a>
+
+    <div class="mobile-menu__foot">
+        <a class="btn btn--block" asp-page="/Booking">Записаться онлайн</a>
+        <div class="mobile-menu__meta">
+            @phone<br />
+            @address<br />
+            @workHours<br />
+            Учебный проект — демонстрация.
+        </div>
+    </div>
+</div>
+
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

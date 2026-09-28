@@ -1,0 +1,97 @@
+@page
+@model ELORA.Web.Pages.Admin.FaqModel
+@{
+    ViewData["Title"] = "Вопросы и ответы";
+    ViewData["Subtitle"] = $"{Model.Items.Count} вопросов";
+}
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">FAQ</h2>
+        <span class="admin-muted">Порядок определяет очерёдность на главной и на /faq</span>
+    </div>
+
+    <div class="admin-accordion">
+        @foreach (var item in Model.Items)
+        {
+            <details class="admin-details">
+                <summary class="admin-details__summary">
+                    <span class="is-strong">@item.Question</span>
+                    <span class="admin-muted">порядок @item.SortOrder</span>
+                    <span class="status-badge @(item.IsActive ? "is-confirmed" : "is-cancelled")">
+                        @(item.IsActive ? "на сайте" : "скрыт")
+                    </span>
+                </summary>
+
+                <form method="post" asp-page-handler="Save" class="admin-form">
+                    <input type="hidden" name="id" value="@item.Id" />
+
+                    <div class="field">
+                        <label class="field__label">Вопрос</label>
+                        <input class="field__input" name="question" value="@item.Question" required />
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label">Ответ</label>
+                        <textarea class="field__textarea" name="answer" required>@item.Answer</textarea>
+                    </div>
+
+                    <div class="admin-form__grid">
+                        <div class="field">
+                            <label class="field__label">Порядок</label>
+                            <input class="field__input" name="sortOrder" type="number" value="@item.SortOrder" />
+                        </div>
+                    </div>
+
+                    <label class="checkbox" style="margin-bottom:14px;">
+                        <input type="checkbox" name="isActive" value="true" checked="@item.IsActive" />
+                        <span>Показывать на сайте</span>
+                    </label>
+
+                    <div class="admin-actions-row">
+                        <button type="submit" class="btn btn--sm">Сохранить</button>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="Delete" data-confirm="Удалить вопрос?">
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <button type="submit" class="admin-mini-btn admin-mini-btn--danger">Удалить</button>
+                </form>
+            </details>
+        }
+    </div>
+</section>
+
+<section class="admin-card">
+    <div class="admin-card__head">
+        <h2 class="admin-card__title">Добавить вопрос</h2>
+    </div>
+
+    <form method="post" asp-page-handler="Save" class="admin-form">
+        <input type="hidden" name="id" value="0" />
+
+        <div class="field">
+            <label class="field__label">Вопрос</label>
+            <input class="field__input" name="question" required />
+        </div>
+
+        <div class="field">
+            <label class="field__label">Ответ</label>
+            <textarea class="field__textarea" name="answer" required></textarea>
+        </div>
+
+        <div class="admin-form__grid">
+            <div class="field">
+                <label class="field__label">Порядок</label>
+                <input class="field__input" name="sortOrder" type="number" value="0" />
+            </div>
+        </div>
+
+        <label class="checkbox" style="margin-bottom:14px;">
+            <input type="checkbox" name="isActive" value="true" checked />
+            <span>Показывать на сайте</span>
+        </label>
+
+        <button type="submit" class="btn">Добавить вопрос</button>
+    </form>
+</section>

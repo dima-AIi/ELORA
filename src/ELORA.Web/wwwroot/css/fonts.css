@@ -1,0 +1,46 @@
+/* Шрифты сайта лежат рядом, а не на fonts.googleapis.com: браузер посетителя
+   не обращается к чужому серверу, и страница не зависит от доступности Google.
+   Файлы сгенерированы tools/fetch_fonts.py из Google Fonts (лицензия SIL OFL). */
+
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: url(/fonts/caveat-cyrillic.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: url(/fonts/caveat-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/fonts/inter-cyrillic.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/fonts/inter-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/fonts/playfair-display-cyrillic.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/fonts/playfair-display-latin.woff2) format('woff2');
+}
