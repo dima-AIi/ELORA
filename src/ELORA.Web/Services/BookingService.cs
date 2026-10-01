@@ -295,10 +295,25 @@ public sealed class BookingService
         if (request.MasterId <= 0) return "Выберите мастера";
         if (string.IsNullOrWhiteSpace(request.Date)) return "Выберите дату";
         if (string.IsNullOrWhiteSpace(request.Time)) return "Выберите время";
-        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length < 2)
-            return "Укажите имя";
-        if (string.IsNullOrWhiteSpace(request.Phone) || request.Phone.Count(char.IsDigit) < 10)
-            return "Укажите корректный телефон";
+
+        // Проверки имени, телефона, комментария и ника вынесены в общий модуль
+        // UserInput: те же правила применяются и в боте, и в панели управления,
+        // поэтому менять их нужно в одном месте.
+        var nameError = UserInput.ValidateName(request.Name);
+        if (nameError is not null) return nameError;
+
+        var phoneError = UserInput.ValidatePhone(request.Phone);
+        if (phoneError is not null) return phoneError;
+
+        var commentError = UserInput.ValidateComment(request.Comment);
+        if (commentError is not null) return commentError;
+
+        // Ник в Telegram необязателен: пустое поле — это нормально, а вот
+        // неправильный ник раньше просто молча исчезал. Теперь человек узнаёт
+        // причину сразу.
+        var nickError = UserInput.ValidateTelegramNick(request.Telegram);
+        if (nickError is not null) return nickError;
+
         return null;
     }
 

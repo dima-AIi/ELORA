@@ -50,6 +50,7 @@
         slotsHint: document.getElementById('slotsHint'),
         toStep5: document.getElementById('toStep5'),
         nameField: document.getElementById('nameField'),
+        nameHint: document.getElementById('nameHint'),
         clientName: document.getElementById('clientName'),
         toStep6: document.getElementById('toStep6'),
         phoneField: document.getElementById('phoneField'),
@@ -400,19 +401,47 @@
 
     el.toStep6.addEventListener('click', function () {
         var value = el.clientName.value.trim();
-        if (value.length < 2) {
+        /* Правила повторяют серверные (Services/BookingService.cs → UserInput):
+           показываем причину сразу, вместо того чтобы отправлять запрос и
+           получать отказ с сервера. Серверная проверка всё равно остаётся —
+           браузеру доверять нельзя, адрес открыт. */
+        var problem = nameProblem(value);
+        if (problem) {
             el.nameField.classList.add('has-error');
+            setNameHint(problem);
             el.clientName.focus();
             return;
         }
         el.nameField.classList.remove('has-error');
+        setNameHint('');
         state.name = value;
         showError('');
         goTo(6);
     });
 
+    /* Причина отказа по имени. */
+    function nameProblem(value) {
+        if (!value) return 'Укажите имя';
+        if (value.length < 2) return 'Имя должно содержать не менее 2 символов';
+        if (value.length > 50) return 'Имя не должно быть длиннее 50 символов';
+        if (/\d/.test(value)) return 'Имя не должно содержать цифры';
+        if (/[^A-Za-zА-Яа-яЁёЄєҐґ' \-]/.test(value)) {
+            return 'Имя может содержать только буквы, пробел и дефис';
+        }
+        return '';
+    }
+
+    function setNameHint(problem) {
+        if (!el.nameHint) return;
+        el.nameHint.textContent = problem || 'Так мастер будет вас звать.';
+        el.nameHint.classList.toggle('field__hint--warn', !!problem);
+    }
+
     el.clientName.addEventListener('input', function () {
-        if (el.clientName.value.trim().length >= 2) el.nameField.classList.remove('has-error');
+        if (!nameProblem(el.clientName.value.trim())) {
+            el.nameField.classList.remove('has-error');
+            setNameHint('');
+        }
     });
 
     el.clientName.addEventListener('keydown', function (event) {
@@ -537,8 +566,10 @@
 
         var prefixes = ['https://t.me/', 'http://t.me/', 'https://telegram.me/',
             'http://telegram.me/', 't.me/', 'telegram.me/'];
+        var isLink = false;
         for (var i = 0; i < prefixes.length; i++) {
             if (text.toLowerCase().indexOf(prefixes[i]) === 0) {
+                isLink = true;
                 text = text.slice(prefixes[i].length);
                 break;
             }
@@ -546,6 +577,10 @@
 
         var cut = text.search(/[?/\s]/);
         if (cut >= 0) text = text.slice(0, cut);
+
+        /* Без at ввод не является ником: слово anna выглядит как готовый
+           ник, но это просто текст, и ошибиться легко. */
+        if (!isLink && text.charAt(0) !== '@') return '';
 
         text = text.replace(/^@+/, '');
 
@@ -557,28 +592,72 @@
         return '@' + text;
     }
 
+    /* Причина отказа по нику. Поле необязательное, поэтому отказ не блокирует
+       переход к следующему шагу: человек может просто оставить его пустым.
+       Но сказать «почему не так» нужно — иначе непонятно, что написать вместо. */
+    function telegramNickProblem(raw) {
+        var text = (raw || '').trim();
+        if (!text) return '';
+
+        var prefixes = ['https://t.me/', 'http://t.me/', 'https://telegram.me/',
+            'http://telegram.me/', 't.me/', 'telegram.me/'];
+        var isLink = false;
+        for (var i = 0; i < prefixes.length; i++) {
+            if (text.toLowerCase().indexOf(prefixes[i]) === 0) {
+                isLink = true;
+                text = text.slice(prefixes[i].length);
+                break;
+            }
+        }
+        var cut = text.search(/[?\/\s]/);
+        if (cut >= 0) text = text.slice(0, cut);
+
+        /* Знак at обязателен: без него ввод выглядит как готовый ник,
+           хотя на самом деле это просто текст. */
+        if (!isLink && text.charAt(0) !== '@') {
+            return 'Ник должен начинаться со знака @ — например @' + text;
+        }
+
+        var bare = text.replace(/^@+/, '');
+        if (bare.length < 3) return 'Ник слишком короткий: минимум 3 символа, например @anna';
+        if (bare.length > 32) return 'Ник слишком длинный: максимум 32 символа';
+        if (/[^A-Za-z0-9_]/.test(bare)) return 'Ник может содержать только латинские буквы, цифры и _';
+        if (/^[0-9_]/.test(bare)) return 'Ник не может начинаться с цифры или _';
+        if (bare.indexOf('__') >= 0) return 'Ник не может содержать два подчёркивания подряд';
+
+        return 'Проверьте ник: он должен начинаться с @ и содержать 3–32 латинские буквы, цифры или _';
+    }
+
     function applyTelegramNick() {
         var raw = el.clientTelegram.value.trim();
         if (!raw) {
             el.clientTelegram.value = '';
-            setTelegramHint(false);
+            setTelegramHint('');
             return '';
         }
 
         var nick = normalizeTelegramNick(raw);
-        el.clientTelegram.value = nick;
-        setTelegramHint(raw.length > 0 && !nick);
+        if (nick) {
+            el.clientTelegram.value = nick;
+            setTelegramHint('');
+        } else {
+            /* Не затираем ввод: пустое поле после ошибки выглядит как потерянный текст. */
+            setTelegramHint(telegramNickProblem(raw));
+        }
         return nick;
     }
 
-    function setTelegramHint(rejected) {
+    function setTelegramHint(problem) {
         if (!el.telegramHint) return;
-        el.telegramHint.textContent = rejected
-            ? 'Это не похоже на ник Telegram — поле оставили пустым. Ник выглядит так: @anna'
+        el.telegramHint.textContent = problem
+            ? problem
             : 'Можно пропустить — запись всё равно сохранится.';
-        el.telegramHint.classList.toggle('field__hint--warn', rejected);
+        el.telegramHint.classList.toggle('field__hint--warn', !!problem);
     }
 
+    el.clientTelegram.addEventListener('input', function () {
+        if (el.clientTelegram.value.trim()) setTelegramHint('');
+    });
     el.clientTelegram.addEventListener('blur', applyTelegramNick);
     el.clientTelegram.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') { event.preventDefault(); el.toStep8.click(); }

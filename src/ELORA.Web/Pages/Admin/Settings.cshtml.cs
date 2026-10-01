@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ELORA.Web.Data.Repositories;
+using ELORA.Web.Helpers;
 using ELORA.Web.Services;
 using ELORA.Web.Services.Telegram;
 using Microsoft.AspNetCore.Mvc;
@@ -405,15 +406,26 @@ public class SettingsModel : PageModel
             return RedirectToPage();
         }
 
-        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        // Порядок проверок: сначала совпадение, затем содержимое. Иначе человек
+        // ввёл кириллицу и не подтвердил пароль — и видит только про совпадение,
+        // хотя дело ещё и в раскладке.
+        if (string.IsNullOrWhiteSpace(newPassword))
         {
-            TempData["FlashError"] = "Новый пароль должен быть не короче 6 символов";
+            TempData["FlashError"] = "Введите новый пароль";
             return RedirectToPage();
         }
 
         if (newPassword != confirmPassword)
         {
             TempData["FlashError"] = "Пароли не совпадают";
+            return RedirectToPage();
+        }
+
+        // Проверка содержимого: длина, латинские буквы, отсутствие кириллицы.
+        var passwordError = UserInput.ValidatePassword(newPassword);
+        if (passwordError is not null)
+        {
+            TempData["FlashError"] = passwordError;
             return RedirectToPage();
         }
 

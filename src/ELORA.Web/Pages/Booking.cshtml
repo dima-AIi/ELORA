@@ -131,6 +131,9 @@
                         <label class="field__label" for="clientName">Имя</label>
                         <input class="field__input" id="clientName" type="text" autocomplete="given-name"
                                placeholder="Например, Анна" maxlength="80" />
+                        <!-- Подсказка показывает конкретную причину отказа: без неё
+                             непонятно, что именно не так с введённым именем. -->
+                        <span class="field__hint" id="nameHint">Так мастер будет вас звать.</span>
                         <span class="field__error">Укажите имя — минимум 2 символа</span>
                     </div>
 
